@@ -18,6 +18,8 @@ extern "C" {
 int download_api_doc(const char* output_dir);
 int download_dataset(const char* output_dir, const char* dataset_code);
 int download_history_draw(const char* output_dir);
+int download_history_draw_from_gov_data(const char* output_dir);
+int download_history_draw_from_taiwan_lottery(const char* output_dir);
 int download_all(const char* output_dir);
 
 #ifdef __cplusplus

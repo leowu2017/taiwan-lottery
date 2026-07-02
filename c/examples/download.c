@@ -8,6 +8,8 @@ static void print_usage(const char *program) {
     fprintf(stderr, "  %s all [output_dir]\n", program);
     fprintf(stderr, "  %s api-doc [output_dir]\n", program);
     fprintf(stderr, "  %s history-draw [output_dir]\n", program);
+    fprintf(stderr, "  %s history-draw-gov [output_dir]\n", program);
+    fprintf(stderr, "  %s history-draw-taiwan-lottery [output_dir]\n", program);
     fprintf(stderr, "  %s dataset <DATASET_CODE> [output_dir]\n", program);
 }
 
@@ -50,6 +52,12 @@ int main(int argc, char **argv) {
     } else if (strcmp(mode, "history-draw") == 0) {
         output_dir = argc > 2 ? argv[2] : default_output_dir;
         status = download_history_draw(output_dir);
+    } else if (strcmp(mode, "history-draw-gov") == 0) {
+        output_dir = argc > 2 ? argv[2] : default_output_dir;
+        status = download_history_draw_from_gov_data(output_dir);
+    } else if (strcmp(mode, "history-draw-taiwan-lottery") == 0) {
+        output_dir = argc > 2 ? argv[2] : default_output_dir;
+        status = download_history_draw_from_taiwan_lottery(output_dir);
     } else if (strcmp(mode, "dataset") == 0) {
         if (argc < 3) {
             print_usage(program);

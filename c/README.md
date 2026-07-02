@@ -22,3 +22,5 @@ From repository root:
 - `c/build/download api-doc data`
 - `c/build/download dataset D416F data`
 - `c/build/download history-draw data`
+- `c/build/download history-draw-gov data`
+- `c/build/download history-draw-taiwan-lottery data`

@@ -68,6 +68,10 @@ Example output layout:
 	Downloads history draw data with a two-path strategy:
 	1) try `D423F` via FinancialPlanning OpenData first,
 	2) fallback to Taiwan Lottery yearly ZIP API (from 2007 onward) only when the primary path returns an HTTP/network error.
+- `download_history_draw_from_gov_data(output_dir)`:
+	Downloads history draw data only from FinancialPlanning OpenData (`D423F`).
+- `download_history_draw_from_taiwan_lottery(output_dir)`:
+	Downloads history draw data only from Taiwan Lottery yearly ZIP API.
 - `download_all(output_dir)`:
 	Downloads API docs and all datasets listed in the docs.
 
@@ -77,6 +81,8 @@ Examples:
 - `cargo run --example download -- api-doc`
 - `cargo run --example download -- dataset D416F`
 - `cargo run --example download -- history-draw`
+- `cargo run --example download -- history-draw-gov`
+- `cargo run --example download -- history-draw-taiwan-lottery`
 
 ## C Example
 
@@ -88,6 +94,8 @@ The C example mirrors the same modes as the Rust example:
 - `api-doc [output_dir]`
 - `dataset <DATASET_CODE> [output_dir]`
 - `history-draw [output_dir]`
+- `history-draw-gov [output_dir]`
+- `history-draw-taiwan-lottery [output_dir]`
 
 Source file:
 
@@ -105,3 +113,5 @@ Example run:
 - `c/build/download api-doc data`
 - `c/build/download dataset D416F data`
 - `c/build/download history-draw data`
+- `c/build/download history-draw-gov data`
+- `c/build/download history-draw-taiwan-lottery data`

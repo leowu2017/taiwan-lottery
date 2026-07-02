@@ -1,7 +1,10 @@
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-use crate::{download_all, download_api_doc, download_dataset, download_history_draw, DownloadError};
+use crate::{
+    download_all, download_api_doc, download_dataset, download_history_draw,
+    download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery, DownloadError,
+};
 
 #[repr(i32)]
 enum DownloadStatus {
@@ -64,6 +67,34 @@ pub extern "C" fn download_history_draw_ffi(output_dir: *const c_char) -> i32 {
     };
 
     map_download_result(download_history_draw(out_dir))
+}
+
+#[unsafe(export_name = "download_history_draw_from_gov_data")]
+pub extern "C" fn download_history_draw_from_gov_data_ffi(output_dir: *const c_char) -> i32 {
+    let out_dir = match c_str_arg_to_string(
+        output_dir,
+        DownloadStatus::NullPath as i32,
+        DownloadStatus::InvalidPathUtf8 as i32,
+    ) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    map_download_result(download_history_draw_from_gov_data(out_dir))
+}
+
+#[unsafe(export_name = "download_history_draw_from_taiwan_lottery")]
+pub extern "C" fn download_history_draw_from_taiwan_lottery_ffi(output_dir: *const c_char) -> i32 {
+    let out_dir = match c_str_arg_to_string(
+        output_dir,
+        DownloadStatus::NullPath as i32,
+        DownloadStatus::InvalidPathUtf8 as i32,
+    ) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    map_download_result(download_history_draw_from_taiwan_lottery(out_dir))
 }
 
 #[unsafe(export_name = "download_all")]
