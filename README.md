@@ -35,3 +35,17 @@ Empty CSV codes:
 - `D422F`
 
 So the URL pattern is correct and downloadable, but not every code currently has non-empty CSV content.
+
+## Download Behavior
+
+`download_all_data` now performs two steps:
+
+1. Download all CSV files from FinancialPlanning OpenData into `data/`.
+2. Parse each CSV and download all `http/https` links found in rows into a per-code directory.
+3. If a downloaded file is a ZIP archive, extract it into its own subfolder under that code directory.
+
+Example output layout:
+
+- `data/D410F.csv`
+- `data/D410F/<downloaded files from links in D410F.csv>`
+- `data/D410F/<zip-file-stem>/<extracted files from that zip>`
