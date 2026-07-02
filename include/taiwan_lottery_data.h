@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-/* Return codes for download_all */
+/* Return codes for all download_* C APIs */
 #define TAIWAN_LOTTERY_OK 0
 #define TAIWAN_LOTTERY_NULL_PATH 1
 #define TAIWAN_LOTTERY_INVALID_PATH_UTF8 2
