@@ -38,11 +38,19 @@ So the URL pattern is correct and downloadable, but not every code currently has
 
 ## Download Behavior
 
-`download_all` now performs two steps:
+`download_all` performs these steps:
 
-1. Download all CSV files from FinancialPlanning OpenData into `data/`.
-2. Parse each CSV and download all `http/https` links found in rows into a per-code directory.
-3. If a downloaded file is a ZIP archive, extract it into its own subfolder under that code directory.
+1. Download API docs JSON into `output_dir`.
+2. Parse all dataset codes from docs.
+3. Download each dataset CSV from FinancialPlanning OpenData into `output_dir`.
+4. Parse each CSV and download all `http/https` links found in rows into a per-code directory.
+5. If a downloaded file is a ZIP archive, extract it into its own subfolder under that code directory.
+
+`download_history_draw` behavior:
+
+1. Primary path: download `D423F` from FinancialPlanning OpenData (same behavior as `download_dataset(output_dir, "D423F")`).
+2. Fallback path: only when the primary path fails with an HTTP/network error, use Taiwan Lottery API (`/Lottery/ResultDownload`) to download yearly ZIP files from 2007 onward until a year has no downloadable path.
+3. Fallback ZIP files are saved under `output_dir/D423F/` and extracted automatically.
 
 Example output layout:
 
@@ -57,7 +65,9 @@ Example output layout:
 - `download_dataset(output_dir, dataset_code)`:
 	Downloads one dataset CSV (for example `D416F.csv`), then downloads all links in that CSV and extracts ZIP files automatically.
 - `download_history_draw(output_dir)`:
-	Shortcut of `download_dataset(output_dir, "D423F")` and includes ZIP extraction.
+	Downloads history draw data with a two-path strategy:
+	1) try `D423F` via FinancialPlanning OpenData first,
+	2) fallback to Taiwan Lottery yearly ZIP API (from 2007 onward) only when the primary path returns an HTTP/network error.
 - `download_all(output_dir)`:
 	Downloads API docs and all datasets listed in the docs.
 

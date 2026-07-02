@@ -15,10 +15,27 @@ const CSV_BASE_URL: &str = "https://gaze.nta.gov.tw/dntmb/OpenData/csvDw?ntaCode
 const API_DOCS_URL: &str = "https://gaze.nta.gov.tw/ntaOpenApi/v2/api-docs?group=FinancialPlanning";
 const API_DOCS_FILE_NAME: &str = "financialplanning_api_docs.json";
 const HISTORY_DRAW_CODE: &str = "D423F";
+const TAIWAN_LOTTERY_RESULT_DOWNLOAD_URL: &str = "https://api.taiwanlottery.com/TLCAPIWeB/Lottery/ResultDownload";
+const TAIWAN_LOTTERY_FALLBACK_START_YEAR: i32 = 2007;
+const TAIWAN_LOTTERY_FALLBACK_MAX_YEAR: i32 = 2200;
 
 #[derive(Debug, serde::Deserialize)]
 struct ApiDocs {
     paths: HashMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct TaiwanLotteryResultDownloadResponse {
+    #[serde(rename = "rtCode")]
+    rt_code: i32,
+    content: Option<TaiwanLotteryResultDownloadContent>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct TaiwanLotteryResultDownloadContent {
+    #[serde(rename = "fileName")]
+    file_name: Option<String>,
+    path: Option<String>,
 }
 
 pub fn build_csv_url(code: &str) -> String {
@@ -442,6 +459,98 @@ fn download_dataset_with_client(
     Ok(saved_files)
 }
 
+fn resolve_taiwan_lottery_history_zip_for_year(
+    client: &reqwest::blocking::Client,
+    year: i32,
+) -> Result<Option<TaiwanLotteryResultDownloadContent>, DownloadError> {
+    let response = client
+        .get(TAIWAN_LOTTERY_RESULT_DOWNLOAD_URL)
+        .query(&[("year", year)])
+        .send()?;
+
+    if !response.status().is_success() {
+        return Ok(None);
+    }
+
+    let response_body = response.text()?;
+    let parsed: TaiwanLotteryResultDownloadResponse = serde_json::from_str(&response_body)?;
+    if parsed.rt_code != 0 {
+        return Ok(None);
+    }
+
+    let Some(content) = parsed.content else {
+        return Ok(None);
+    };
+    let has_path = content
+        .path
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .is_some();
+
+    if has_path {
+        Ok(Some(content))
+    } else {
+        Ok(None)
+    }
+}
+
+fn download_history_draw_from_taiwan_lottery_with_client(
+    client: &reqwest::blocking::Client,
+    output_dir: &Path,
+) -> Result<Vec<PathBuf>, DownloadError> {
+    fs::create_dir_all(output_dir)?;
+    let code_dir = output_dir.join(HISTORY_DRAW_CODE);
+    fs::create_dir_all(&code_dir)?;
+
+    let mut saved_files = Vec::new();
+    for year in TAIWAN_LOTTERY_FALLBACK_START_YEAR..=TAIWAN_LOTTERY_FALLBACK_MAX_YEAR {
+        let metadata = match resolve_taiwan_lottery_history_zip_for_year(client, year)? {
+            Some(value) => value,
+            None => break,
+        };
+
+        let download_path = metadata
+            .path
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| std::io::Error::other("Taiwan Lottery API returned empty download path"))?;
+
+        let file_bytes = client
+            .get(download_path)
+            .send()?
+            .error_for_status()?
+            .bytes()?;
+
+        let mut file_name = metadata
+            .file_name
+            .as_deref()
+            .map(sanitize_file_name)
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| year.to_string());
+        if file_name.rsplit_once('.').is_none() {
+            file_name.push_str(".zip");
+        }
+
+        let out_path = code_dir.join(&file_name);
+        fs::write(&out_path, &file_bytes)?;
+        saved_files.push(out_path.clone());
+
+        if should_extract_zip(&file_name, &file_bytes) {
+            let extract_dir = zip_extract_dir_for_file(&code_dir, &file_name, year as usize);
+            let extracted_files = extract_zip_bytes(&file_bytes, &extract_dir)?;
+            saved_files.extend(extracted_files);
+        }
+    }
+
+    if saved_files.is_empty() {
+        return Err(std::io::Error::other("no downloadable history draw zip in Taiwan Lottery API").into());
+    }
+
+    Ok(saved_files)
+}
+
 pub fn download_api_doc(output_dir: impl AsRef<Path>) -> Result<PathBuf, DownloadError> {
     let output_dir = output_dir.as_ref();
     let client = build_http_client()?;
@@ -459,7 +568,16 @@ pub fn download_dataset(
 }
 
 pub fn download_history_draw(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
-    download_dataset(output_dir, HISTORY_DRAW_CODE)
+    let output_dir = output_dir.as_ref();
+    let client = build_http_client()?;
+
+    match download_dataset_with_client(&client, output_dir, HISTORY_DRAW_CODE) {
+        Ok(files) => Ok(files),
+        Err(DownloadError::Http(_)) => {
+            download_history_draw_from_taiwan_lottery_with_client(&client, output_dir)
+        }
+        Err(err) => Err(err),
+    }
 }
 
 pub fn download_all(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
@@ -542,8 +660,15 @@ mod tests {
 
     #[test]
     fn mojibake_utf8_filename_is_fixed() {
-        let header = "attachment; filename=\"ä¸­æå ±è¡¨.pdf\"";
-        let file_name = file_name_from_content_disposition(header).expect("must parse filename");
+        let mojibake: String = [
+            0xE4u8, 0xB8, 0xAD, 0xE6, 0x96, 0x87, 0xE5, 0xA0, 0xB1, 0xE8, 0xA1, 0xA8, b'.',
+            b'p', b'd', b'f',
+        ]
+        .iter()
+        .map(|byte| *byte as char)
+        .collect();
+        let header = format!("attachment; filename=\"{mojibake}\"");
+        let file_name = file_name_from_content_disposition(&header).expect("must parse filename");
         assert_eq!(file_name, "中文報表.pdf");
     }
 
