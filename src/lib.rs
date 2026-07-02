@@ -11,6 +11,7 @@ use reqwest::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 const CSV_BASE_URL: &str = "https://gaze.nta.gov.tw/dntmb/OpenData/csvDw?ntaCode=";
 const API_DOCS_URL: &str = "https://gaze.nta.gov.tw/ntaOpenApi/v2/api-docs?group=FinancialPlanning";
 const API_DOCS_FILE_NAME: &str = "financialplanning_api_docs.json";
+const HISTORY_DRAW_CODE: &str = "D423F";
 
 #[derive(Debug, serde::Deserialize)]
 struct ApiDocs {
@@ -432,13 +433,18 @@ fn download_csv_linked_files(
     Ok(saved_files)
 }
 
-pub fn download_all_data(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
-    let output_dir = output_dir.as_ref();
-    fs::create_dir_all(output_dir)?;
-
-    let client = reqwest::blocking::Client::builder()
+fn build_http_client() -> Result<reqwest::blocking::Client, DownloadError> {
+    reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(60))
-        .build()?;
+        .build()
+        .map_err(DownloadError::from)
+}
+
+fn download_api_doc_with_client(
+    client: &reqwest::blocking::Client,
+    output_dir: &Path,
+) -> Result<(String, PathBuf), DownloadError> {
+    fs::create_dir_all(output_dir)?;
 
     let api_docs_body = client
         .get(API_DOCS_URL)
@@ -448,55 +454,164 @@ pub fn download_all_data(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, D
 
     let api_docs_out_path = output_dir.join(API_DOCS_FILE_NAME);
     fs::write(&api_docs_out_path, api_docs_body.as_bytes())?;
+    Ok((api_docs_body, api_docs_out_path))
+}
+
+fn download_dataset_with_client(
+    client: &reqwest::blocking::Client,
+    output_dir: &Path,
+    code: &str,
+) -> Result<Vec<PathBuf>, DownloadError> {
+    fs::create_dir_all(output_dir)?;
+
+    let url = build_csv_url(code);
+    let body = client.get(&url).send()?.error_for_status()?.bytes()?;
+
+    let out_path = output_dir.join(format!("{code}.csv"));
+    fs::write(&out_path, &body)?;
+
+    let mut saved_files = Vec::new();
+    saved_files.push(out_path);
+
+    let linked_files = download_csv_linked_files(client, code, &body, output_dir)?;
+    saved_files.extend(linked_files);
+    Ok(saved_files)
+}
+
+pub fn download_api_doc(output_dir: impl AsRef<Path>) -> Result<PathBuf, DownloadError> {
+    let output_dir = output_dir.as_ref();
+    let client = build_http_client()?;
+    let (_, path) = download_api_doc_with_client(&client, output_dir)?;
+    Ok(path)
+}
+
+pub fn download_dataset(
+    output_dir: impl AsRef<Path>,
+    dataset_code: &str,
+) -> Result<Vec<PathBuf>, DownloadError> {
+    let output_dir = output_dir.as_ref();
+    let client = build_http_client()?;
+    download_dataset_with_client(&client, output_dir, dataset_code)
+}
+
+pub fn download_history_draw(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
+    download_dataset(output_dir, HISTORY_DRAW_CODE)
+}
+
+pub fn download_all(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
+    let output_dir = output_dir.as_ref();
+    let client = build_http_client()?;
+    let (api_docs_body, api_docs_out_path) = download_api_doc_with_client(&client, output_dir)?;
 
     let codes = parse_codes_from_api_docs(&api_docs_body)?;
 
     let mut saved_files = Vec::with_capacity(codes.len() + 1);
     saved_files.push(api_docs_out_path);
     for code in codes {
-        let url = build_csv_url(&code);
-        let body = client.get(&url).send()?.error_for_status()?.bytes()?;
-
-        let out_path = output_dir.join(format!("{code}.csv"));
-        fs::write(&out_path, &body)?;
-        saved_files.push(out_path);
-
-        let linked_files = download_csv_linked_files(&client, &code, &body, output_dir)?;
-        saved_files.extend(linked_files);
+        let files = download_dataset_with_client(&client, output_dir, &code)?;
+        saved_files.extend(files);
     }
 
     Ok(saved_files)
 }
 
 #[repr(i32)]
-enum DownloadAllDataStatus {
+enum DownloadStatus {
     Success = 0,
     NullPath = 1,
     InvalidPathUtf8 = 2,
     Io = 3,
     Network = 4,
     Parse = 5,
+    NullDatasetCode = 6,
+    InvalidDatasetCodeUtf8 = 7,
 }
 
-#[unsafe(export_name = "download_all_data")]
-pub extern "C" fn download_all_data_ffi(output_dir: *const c_char) -> i32 {
-    if output_dir.is_null() {
-        return DownloadAllDataStatus::NullPath as i32;
-    }
-
-    // SAFETY: output_dir is checked for null above and expected to point to a valid C string.
-    let c_str = unsafe { CStr::from_ptr(output_dir) };
-    let out_dir = match c_str.to_str() {
-        Ok(path) => path,
-        Err(_) => return DownloadAllDataStatus::InvalidPathUtf8 as i32,
+#[unsafe(export_name = "download_api_doc")]
+pub extern "C" fn download_api_doc_ffi(output_dir: *const c_char) -> i32 {
+    let out_dir = match c_str_arg_to_string(
+        output_dir,
+        DownloadStatus::NullPath as i32,
+        DownloadStatus::InvalidPathUtf8 as i32,
+    ) {
+        Ok(value) => value,
+        Err(status) => return status,
     };
 
-    match download_all_data(out_dir) {
-        Ok(_) => DownloadAllDataStatus::Success as i32,
-        Err(DownloadError::Io(_)) => DownloadAllDataStatus::Io as i32,
-        Err(DownloadError::Http(_)) => DownloadAllDataStatus::Network as i32,
+    map_download_result(download_api_doc(out_dir))
+}
+
+#[unsafe(export_name = "download_dataset")]
+pub extern "C" fn download_dataset_ffi(output_dir: *const c_char, dataset_code: *const c_char) -> i32 {
+    let out_dir = match c_str_arg_to_string(
+        output_dir,
+        DownloadStatus::NullPath as i32,
+        DownloadStatus::InvalidPathUtf8 as i32,
+    ) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    let dataset_code = match c_str_arg_to_string(
+        dataset_code,
+        DownloadStatus::NullDatasetCode as i32,
+        DownloadStatus::InvalidDatasetCodeUtf8 as i32,
+    ) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    map_download_result(download_dataset(out_dir, &dataset_code))
+}
+
+#[unsafe(export_name = "download_history_draw")]
+pub extern "C" fn download_history_draw_ffi(output_dir: *const c_char) -> i32 {
+    let out_dir = match c_str_arg_to_string(
+        output_dir,
+        DownloadStatus::NullPath as i32,
+        DownloadStatus::InvalidPathUtf8 as i32,
+    ) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    map_download_result(download_history_draw(out_dir))
+}
+
+#[unsafe(export_name = "download_all")]
+pub extern "C" fn download_all_ffi(output_dir: *const c_char) -> i32 {
+    let out_dir = match c_str_arg_to_string(
+        output_dir,
+        DownloadStatus::NullPath as i32,
+        DownloadStatus::InvalidPathUtf8 as i32,
+    ) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    map_download_result(download_all(out_dir))
+}
+
+fn c_str_arg_to_string(ptr: *const c_char, null_status: i32, invalid_utf8_status: i32) -> Result<String, i32> {
+    if ptr.is_null() {
+        return Err(null_status);
+    }
+
+    // SAFETY: ptr is checked for null above and expected to point to a valid C string.
+    let c_str = unsafe { CStr::from_ptr(ptr) };
+    match c_str.to_str() {
+        Ok(value) => Ok(value.to_string()),
+        Err(_) => Err(invalid_utf8_status),
+    }
+}
+
+fn map_download_result<T>(result: Result<T, DownloadError>) -> i32 {
+    match result {
+        Ok(_) => DownloadStatus::Success as i32,
+        Err(DownloadError::Io(_)) => DownloadStatus::Io as i32,
+        Err(DownloadError::Http(_)) => DownloadStatus::Network as i32,
         Err(DownloadError::Json(_) | DownloadError::Csv(_) | DownloadError::Zip(_)) => {
-            DownloadAllDataStatus::Parse as i32
+            DownloadStatus::Parse as i32
         }
     }
 }
@@ -527,6 +642,11 @@ mod tests {
             build_csv_url("D423F"),
             "https://gaze.nta.gov.tw/dntmb/OpenData/csvDw?ntaCode=D423F"
         );
+    }
+
+    #[test]
+    fn history_draw_targets_d423f() {
+        assert_eq!(build_csv_url(HISTORY_DRAW_CODE), build_csv_url("D423F"));
     }
 
     #[test]

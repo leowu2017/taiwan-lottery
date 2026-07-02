@@ -38,7 +38,7 @@ So the URL pattern is correct and downloadable, but not every code currently has
 
 ## Download Behavior
 
-`download_all_data` now performs two steps:
+`download_all` now performs two steps:
 
 1. Download all CSV files from FinancialPlanning OpenData into `data/`.
 2. Parse each CSV and download all `http/https` links found in rows into a per-code directory.
@@ -49,3 +49,21 @@ Example output layout:
 - `data/D410F.csv`
 - `data/D410F/<downloaded files from links in D410F.csv>`
 - `data/D410F/<zip-file-stem>/<extracted files from that zip>`
+
+## Public APIs
+
+- `download_api_doc(output_dir)`:
+	Downloads `financialplanning_api_docs.json` into `output_dir`.
+- `download_dataset(output_dir, dataset_code)`:
+	Downloads one dataset CSV (for example `D416F.csv`), then downloads all links in that CSV and extracts ZIP files automatically.
+- `download_history_draw(output_dir)`:
+	Shortcut of `download_dataset(output_dir, "D423F")` and includes ZIP extraction.
+- `download_all(output_dir)`:
+	Downloads API docs and all datasets listed in the docs.
+
+Examples:
+
+- `cargo run --example download -- all`
+- `cargo run --example download -- api-doc`
+- `cargo run --example download -- dataset D416F`
+- `cargo run --example download -- history-draw`
