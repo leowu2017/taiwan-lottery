@@ -67,3 +67,31 @@ Examples:
 - `cargo run --example download -- api-doc`
 - `cargo run --example download -- dataset D416F`
 - `cargo run --example download -- history-draw`
+
+## C Example
+
+The C SDK layout is under `c/`.
+
+The C example mirrors the same modes as the Rust example:
+
+- `all [output_dir]`
+- `api-doc [output_dir]`
+- `dataset <DATASET_CODE> [output_dir]`
+- `history-draw [output_dir]`
+
+Source file:
+
+- `c/examples/download.c`
+
+Example build (CMake):
+
+- `cargo build --release`
+- `cmake -S c -B c/build`
+- `cmake --build c/build --config Release`
+
+Example run:
+
+- `c/build/download all data`
+- `c/build/download api-doc data`
+- `c/build/download dataset D416F data`
+- `c/build/download history-draw data`
