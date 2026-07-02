@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 use crate::{
     download_all, download_api_doc, download_dataset, download_history_draw,
     download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
-    query_history_draw, query_history_draw_from_taiwan_lottory, DownloadError,
+    query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError,
     HistoryDrawQuery, HistoryGame, HistorySession,
 };
 
@@ -29,8 +29,8 @@ pub struct HistoryDrawItemC {
     period: *mut c_char,
     lottery_date: *mut c_char,
     redeemable_date: *mut c_char,
-    draw_number_size: *mut i32,
-    draw_number_size_len: usize,
+    numbers: *mut i32,
+    numbers_len: usize,
     draw_number_appear: *mut i32,
     draw_number_appear_len: usize,
     has_draw_number_appear: u8,
@@ -172,8 +172,8 @@ pub extern "C" fn query_history_draw_ffi(
     map_history_result_to_struct_status(result, out_page)
 }
 
-#[unsafe(export_name = "query_history_draw_from_taiwan_lottory")]
-pub extern "C" fn query_history_draw_from_taiwan_lottory_ffi(
+#[unsafe(export_name = "query_history_draw_from_taiwan_lottery")]
+pub extern "C" fn query_history_draw_from_taiwan_lottery_ffi(
     game: i32,
     period: *const c_char,
     month: *const c_char,
@@ -194,7 +194,7 @@ pub extern "C" fn query_history_draw_from_taiwan_lottory_ffi(
         Err(status) => return status,
     };
 
-    let result = query_history_draw_from_taiwan_lottory(game, query);
+    let result = query_history_draw_from_taiwan_lottery(game, query);
     map_history_result_to_struct_status(result, out_page)
 }
 
@@ -337,11 +337,11 @@ fn history_page_to_c(page: crate::HistoryDrawPage) -> Box<HistoryDrawPageC> {
 }
 
 fn history_item_to_c(item: crate::HistoryDrawItem) -> HistoryDrawItemC {
-    let draw_number_size_len = item.draw_number_size.len();
-    let draw_number_size_ptr = if draw_number_size_len == 0 {
+    let numbers_len = item.numbers.len();
+    let numbers_ptr = if numbers_len == 0 {
         std::ptr::null_mut()
     } else {
-        Box::into_raw(item.draw_number_size.into_boxed_slice()) as *mut i32
+        Box::into_raw(item.numbers.into_boxed_slice()) as *mut i32
     };
 
     let (draw_number_appear_ptr, draw_number_appear_len, has_draw_number_appear) =
@@ -361,8 +361,8 @@ fn history_item_to_c(item: crate::HistoryDrawItem) -> HistoryDrawItemC {
         period: string_to_c_ptr(item.period),
         lottery_date: optional_string_to_c_ptr(item.lottery_date),
         redeemable_date: optional_string_to_c_ptr(item.redeemable_date),
-        draw_number_size: draw_number_size_ptr,
-        draw_number_size_len,
+        numbers: numbers_ptr,
+        numbers_len,
         draw_number_appear: draw_number_appear_ptr,
         draw_number_appear_len,
         has_draw_number_appear,
@@ -383,12 +383,12 @@ fn free_history_draw_item(item: &HistoryDrawItemC) {
         let _ = unsafe { CString::from_raw(item.redeemable_date) };
     }
 
-    if !item.draw_number_size.is_null() {
+    if !item.numbers.is_null() {
         // SAFETY: pointer/len pair was created from Box<[i32]> in this crate.
         let _ = unsafe {
             Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                item.draw_number_size,
-                item.draw_number_size_len,
+                item.numbers,
+                item.numbers_len,
             ))
         };
     }

@@ -44,8 +44,8 @@ typedef struct taiwan_lottery_history_draw_item {
 	char* period;
 	char* lottery_date;
 	char* redeemable_date;
-	int32_t* draw_number_size;
-	size_t draw_number_size_len;
+	int32_t* numbers;
+	size_t numbers_len;
 	int32_t* draw_number_appear;
 	size_t draw_number_appear_len;
 	uint8_t has_draw_number_appear;
@@ -66,7 +66,7 @@ int query_history_draw(
 	int session,
 	taiwan_lottery_history_draw_page** out_page);
 
-int query_history_draw_from_taiwan_lottory(
+int query_history_draw_from_taiwan_lottery(
 	int game,
 	const char* period,
 	const char* month,
