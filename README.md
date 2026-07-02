@@ -73,14 +73,15 @@ Example output layout:
 - `download_history_draw_from_taiwan_lottery(output_dir)`:
 	Downloads history draw data only from Taiwan Lottery yearly ZIP API.
 
-- `get_history_draw(output_dir, game, query)`:
+- `query_history_draw(output_dir, game, query)`:
 	Reads history draw data from files that were downloaded by `download_history_draw` (under `output_dir/D423F/`).
 	This source only guarantees sorted draw numbers (`draw_number_size`).
 	`draw_number_appear` is returned as `null` to avoid misleading interpretation.
-- `get_history_draw_from_taiwan_lottory(game, query)`:
+- `query_history_draw_from_taiwan_lottory(game, query)`:
 	Calls Taiwan Lottery website API directly. This source can provide both:
 	1) draw order (`draw_number_appear`),
 	2) sorted order (`draw_number_size`).
+
 - `download_all(output_dir)`:
 	Downloads API docs and all datasets listed in the docs.
 
@@ -88,7 +89,7 @@ Example (`Lotto649`, local query from downloaded files):
 
 ```rust
 use taiwan_lottery::{
-	download_history_draw, get_history_draw, HistoryDrawQuery, HistoryGame,
+	download_history_draw, query_history_draw, HistoryDrawQuery, HistoryGame,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -96,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	let query = HistoryDrawQuery::by_month("2023-12");
 
-	let page = get_history_draw("data", HistoryGame::Lotto649, query)?;
+	let page = query_history_draw("data", HistoryGame::Lotto649, query)?;
 	for item in page.items {
 		println!("period={}", item.period);
 		println!("draw_number_appear={:?}", item.draw_number_appear); // local source is None
@@ -115,8 +116,8 @@ Examples:
 - `cargo run --example download -- history-draw`
 - `cargo run --example download -- history-draw-gov`
 - `cargo run --example download -- history-draw-taiwan-lottery`
-- `cargo run --example get_draw -- local lotto649 period 115000001 data`
-- `cargo run --example get_draw -- remote lotto649 month 2026-01`
+- `cargo run --example query -- local lotto649 period 115000001 data`
+- `cargo run --example query -- remote lotto649 month 2026-01`
 
 ## C Example
 
@@ -134,6 +135,7 @@ The C example mirrors the same modes as the Rust example:
 Source file:
 
 - `c/examples/download.c`
+- `c/examples/query.c`
 
 Example build (CMake):
 
@@ -149,3 +151,5 @@ Example run:
 - `c/build/download history-draw data`
 - `c/build/download history-draw-gov data`
 - `c/build/download history-draw-taiwan-lottery data`
+- `c/build/query local lotto649 period 115000001 data`
+- `c/build/query remote lotto649 month 2026-01`

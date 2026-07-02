@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use taiwan_lottery::{
-    get_history_draw, get_history_draw_from_taiwan_lottory, HistoryDrawQuery, HistoryGame,
+    query_history_draw, query_history_draw_from_taiwan_lottory, HistoryDrawQuery, HistoryGame,
     HistorySession,
 };
 
@@ -56,7 +56,7 @@ fn parse_query(mode: &str, value: &str, session: HistorySession) -> HistoryDrawQ
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let program = args.first().cloned().unwrap_or_else(|| "get_draw".to_string());
+    let program = args.first().cloned().unwrap_or_else(|| "query".to_string());
 
     if args.len() < 5 {
         print_usage(&program);
@@ -87,12 +87,12 @@ fn main() {
                 .unwrap_or_else(default_output_dir);
             let session = parse_session(args.get(6));
             let query = parse_query(query_mode, &query_value, session);
-            get_history_draw(output_dir, game, query)
+            query_history_draw(output_dir, game, query)
         }
         "remote" => {
             let session = parse_session(args.get(5));
             let query = parse_query(query_mode, &query_value, session);
-            get_history_draw_from_taiwan_lottory(game, query)
+            query_history_draw_from_taiwan_lottory(game, query)
         }
         _ => {
             print_usage(&program);
@@ -115,7 +115,7 @@ fn main() {
             }
         }
         Err(err) => {
-            eprintln!("get_draw failed: {err:?}");
+            eprintln!("query failed: {err:?}");
             std::process::exit(1);
         }
     }

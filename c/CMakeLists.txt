@@ -23,3 +23,7 @@ endif()
 add_executable(download examples/download.c)
 target_include_directories(download PRIVATE "${TAIWAN_LOTTERY_INCLUDE_DIR}")
 target_link_libraries(download PRIVATE "${TAIWAN_LOTTERY_LIB}")
+
+add_executable(query examples/query.c)
+target_include_directories(query PRIVATE "${TAIWAN_LOTTERY_INCLUDE_DIR}")
+target_link_libraries(query PRIVATE "${TAIWAN_LOTTERY_LIB}")

@@ -1,5 +1,5 @@
-#ifndef TAIWAN_LOTTERY_DATA_H
-#define TAIWAN_LOTTERY_DATA_H
+#ifndef TAIWAN_LOTTERY_QUERY_H
+#define TAIWAN_LOTTERY_QUERY_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -8,7 +8,6 @@
 extern "C" {
 #endif
 
-/* Return codes for all download_* C APIs */
 #define TAIWAN_LOTTERY_OK 0
 #define TAIWAN_LOTTERY_NULL_PATH 1
 #define TAIWAN_LOTTERY_INVALID_PATH_UTF8 2
@@ -22,7 +21,7 @@ extern "C" {
 #define TAIWAN_LOTTERY_INVALID_QUERY_UTF8 10
 #define TAIWAN_LOTTERY_NULL_RESULT_POINTER 11
 
-/* History game values for get_history_draw* C APIs */
+/* History game values for query_history_draw* C APIs */
 #define TAIWAN_LOTTERY_HISTORY_GAME_SUPER_LOTTO_638 0
 #define TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649 1
 #define TAIWAN_LOTTERY_HISTORY_GAME_DAILY_539 2
@@ -36,7 +35,7 @@ extern "C" {
 #define TAIWAN_LOTTERY_HISTORY_GAME_TIC_TAC_TOE 10
 #define TAIWAN_LOTTERY_HISTORY_GAME_638 11
 
-/* History session values for get_history_draw* C APIs */
+/* History session values for query_history_draw* C APIs */
 #define TAIWAN_LOTTERY_HISTORY_SESSION_THIRD 0
 #define TAIWAN_LOTTERY_HISTORY_SESSION_FOURTH 1
 #define TAIWAN_LOTTERY_HISTORY_SESSION_FIFTH 2
@@ -58,21 +57,7 @@ typedef struct taiwan_lottery_history_draw_page {
 	taiwan_lottery_history_draw_item* items;
 } taiwan_lottery_history_draw_page;
 
-int download_api_doc(const char* output_dir);
-int download_dataset(const char* output_dir, const char* dataset_code);
-int download_history_draw(const char* output_dir);
-int download_history_draw_from_gov_data(const char* output_dir);
-int download_history_draw_from_taiwan_lottery(const char* output_dir);
-int download_all(const char* output_dir);
-
-/*
- * Query draw results from downloaded local history files (output_dir/D423F).
- *
- * period/month/end_month are optional UTF-8 strings (pass NULL or "" when unused).
- * out_page receives ownership of a heap-allocated result page on success.
- * The caller must free it with free_history_draw_page().
- */
-int get_history_draw(
+int query_history_draw(
 	const char* output_dir,
 	int game,
 	const char* period,
@@ -81,10 +66,7 @@ int get_history_draw(
 	int session,
 	taiwan_lottery_history_draw_page** out_page);
 
-/*
- * Query draw results directly from Taiwan Lottery web API.
- */
-int get_history_draw_from_taiwan_lottory(
+int query_history_draw_from_taiwan_lottory(
 	int game,
 	const char* period,
 	const char* month,

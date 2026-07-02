@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <taiwan_lottery/data.h>
+#include <taiwan_lottery/download.h>
 
 static void print_usage(const char *program) {
     fprintf(stderr, "Usage:\n");

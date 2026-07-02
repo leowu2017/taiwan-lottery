@@ -8,8 +8,17 @@ use reqwest::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 
 mod errors;
 mod ffi;
+mod download;
+mod query;
 
 pub use errors::DownloadError;
+pub use download::{
+    download_all, download_api_doc, download_dataset, download_history_draw,
+    download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
+};
+pub use query::{
+    query_history_draw, query_history_draw_from_taiwan_lottory,
+};
 
 const CSV_BASE_URL: &str = "https://gaze.nta.gov.tw/dntmb/OpenData/csvDw?ntaCode=";
 const API_DOCS_URL: &str = "https://gaze.nta.gov.tw/ntaOpenApi/v2/api-docs?group=FinancialPlanning";
@@ -1065,14 +1074,14 @@ fn download_history_draw_from_taiwan_lottery_with_client(
     Ok(saved_files)
 }
 
-pub fn download_api_doc(output_dir: impl AsRef<Path>) -> Result<PathBuf, DownloadError> {
+pub(crate) fn download_api_doc_impl(output_dir: impl AsRef<Path>) -> Result<PathBuf, DownloadError> {
     let output_dir = output_dir.as_ref();
     let client = build_http_client()?;
     let (_, path) = download_api_doc_with_client(&client, output_dir)?;
     Ok(path)
 }
 
-pub fn download_dataset(
+pub(crate) fn download_dataset_impl(
     output_dir: impl AsRef<Path>,
     dataset_code: &str,
 ) -> Result<Vec<PathBuf>, DownloadError> {
@@ -1081,7 +1090,7 @@ pub fn download_dataset(
     download_dataset_with_client(&client, output_dir, dataset_code)
 }
 
-pub fn download_history_draw_from_gov_data(
+pub(crate) fn download_history_draw_from_gov_data_impl(
     output_dir: impl AsRef<Path>,
 ) -> Result<Vec<PathBuf>, DownloadError> {
     let output_dir = output_dir.as_ref();
@@ -1089,7 +1098,7 @@ pub fn download_history_draw_from_gov_data(
     download_dataset_with_client(&client, output_dir, HISTORY_DRAW_CODE)
 }
 
-pub fn download_history_draw_from_taiwan_lottery(
+pub(crate) fn download_history_draw_from_taiwan_lottery_impl(
     output_dir: impl AsRef<Path>,
 ) -> Result<Vec<PathBuf>, DownloadError> {
     let output_dir = output_dir.as_ref();
@@ -1097,15 +1106,15 @@ pub fn download_history_draw_from_taiwan_lottery(
     download_history_draw_from_taiwan_lottery_with_client(&client, output_dir)
 }
 
-pub fn download_history_draw(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
-    match download_history_draw_from_gov_data(output_dir.as_ref()) {
+pub(crate) fn download_history_draw_impl(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
+    match download_history_draw_from_gov_data_impl(output_dir.as_ref()) {
         Ok(files) => Ok(files),
-        Err(DownloadError::Http(_)) => download_history_draw_from_taiwan_lottery(output_dir.as_ref()),
+        Err(DownloadError::Http(_)) => download_history_draw_from_taiwan_lottery_impl(output_dir.as_ref()),
         Err(err) => Err(err),
     }
 }
 
-pub fn get_history_draw(
+pub(crate) fn get_history_draw_impl(
     output_dir: impl AsRef<Path>,
     game: HistoryGame,
     query: HistoryDrawQuery,
@@ -1113,7 +1122,7 @@ pub fn get_history_draw(
     get_history_draw_from_downloaded_data(output_dir.as_ref(), game, &query)
 }
 
-pub fn get_history_draw_from_taiwan_lottory(
+pub(crate) fn get_history_draw_from_taiwan_lottory_impl(
     game: HistoryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
@@ -1121,7 +1130,7 @@ pub fn get_history_draw_from_taiwan_lottory(
     get_history_draw_with_client(&client, game, &query)
 }
 
-pub fn download_all(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
+pub(crate) fn download_all_impl(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
     let output_dir = output_dir.as_ref();
     let client = build_http_client()?;
     let (api_docs_body, api_docs_out_path) = download_api_doc_with_client(&client, output_dir)?;
@@ -1361,7 +1370,7 @@ mod tests {
         .expect("write csv");
 
         let query = HistoryDrawQuery::by_period("115000001");
-        let page = get_history_draw(&root, HistoryGame::Lotto649, query).expect("query local data");
+        let page = query_history_draw(&root, HistoryGame::Lotto649, query).expect("query local data");
         assert_eq!(page.total_size, 1);
         assert_eq!(page.items.len(), 1);
         assert_eq!(page.items[0].draw_number_appear, None);

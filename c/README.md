@@ -8,11 +8,20 @@ This directory contains C-facing usage assets for the Rust library:
 
 ## Query APIs (C)
 
-The header `include/taiwan_lottery/data.h` now exposes:
+The main entry header is:
 
-- `get_history_draw(...)`: query from downloaded local history files (`output_dir/D423F`).
-- `get_history_draw_from_taiwan_lottory(...)`: query directly from Taiwan Lottery web API.
+- `include/taiwan_lottery/taiwan_lottery.h`
+
+It exposes:
+
+- `query_history_draw(...)`: query from downloaded local history files (`output_dir/D423F`).
+- `query_history_draw_from_taiwan_lottory(...)`: query directly from Taiwan Lottery web API.
 - `free_history_draw_page(...)`: release memory allocated by the two query APIs.
+
+Prefer split headers by concern:
+
+- `include/taiwan_lottery/download.h`
+- `include/taiwan_lottery/query.h`
 
 Both query functions return a `taiwan_lottery_history_draw_page*` via output pointer.
 The caller owns this memory and must call `free_history_draw_page(...)` when done.
@@ -35,3 +44,5 @@ From repository root:
 - `c/build/download history-draw data`
 - `c/build/download history-draw-gov data`
 - `c/build/download history-draw-taiwan-lottery data`
+- `c/build/query local lotto649 period 115000001 data`
+- `c/build/query remote lotto649 month 2026-01`

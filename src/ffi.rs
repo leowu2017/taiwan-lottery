@@ -4,8 +4,8 @@ use std::os::raw::c_char;
 use crate::{
     download_all, download_api_doc, download_dataset, download_history_draw,
     download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
-    get_history_draw, get_history_draw_from_taiwan_lottory, DownloadError, HistoryDrawQuery,
-    HistoryGame, HistorySession,
+    query_history_draw, query_history_draw_from_taiwan_lottory, DownloadError,
+    HistoryDrawQuery, HistoryGame, HistorySession,
 };
 
 #[repr(i32)]
@@ -136,8 +136,8 @@ pub extern "C" fn download_all_ffi(output_dir: *const c_char) -> i32 {
     map_download_result(download_all(out_dir))
 }
 
-#[unsafe(export_name = "get_history_draw")]
-pub extern "C" fn get_history_draw_ffi(
+#[unsafe(export_name = "query_history_draw")]
+pub extern "C" fn query_history_draw_ffi(
     output_dir: *const c_char,
     game: i32,
     period: *const c_char,
@@ -168,12 +168,12 @@ pub extern "C" fn get_history_draw_ffi(
         Err(status) => return status,
     };
 
-    let result = get_history_draw(out_dir, game, query);
+    let result = query_history_draw(out_dir, game, query);
     map_history_result_to_struct_status(result, out_page)
 }
 
-#[unsafe(export_name = "get_history_draw_from_taiwan_lottory")]
-pub extern "C" fn get_history_draw_from_taiwan_lottory_ffi(
+#[unsafe(export_name = "query_history_draw_from_taiwan_lottory")]
+pub extern "C" fn query_history_draw_from_taiwan_lottory_ffi(
     game: i32,
     period: *const c_char,
     month: *const c_char,
@@ -194,7 +194,7 @@ pub extern "C" fn get_history_draw_from_taiwan_lottory_ffi(
         Err(status) => return status,
     };
 
-    let result = get_history_draw_from_taiwan_lottory(game, query);
+    let result = query_history_draw_from_taiwan_lottory(game, query);
     map_history_result_to_struct_status(result, out_page)
 }
 
