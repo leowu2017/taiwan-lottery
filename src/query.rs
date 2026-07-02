@@ -7,12 +7,12 @@ pub fn query_history_draw(
     game: HistoryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
-    crate::get_history_draw_impl(output_dir, game, query)
+    crate::query_history_draw_impl(output_dir, game, query)
 }
 
-pub fn query_history_draw_from_taiwan_lottory(
+pub fn query_history_draw_from_taiwan_lottery(
     game: HistoryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
-    crate::get_history_draw_from_taiwan_lottory_impl(game, query)
+    crate::query_history_draw_from_taiwan_lottery_impl(game, query)
 }

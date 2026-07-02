@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
         const char *end_month = month;
 
         session = parse_session(session_text);
-        status = query_history_draw_from_taiwan_lottory(game, period, month, end_month, session, &page);
+        status = query_history_draw_from_taiwan_lottery(game, period, month, end_month, session, &page);
     } else {
         print_usage(program);
         return 2;
@@ -147,8 +147,8 @@ int main(int argc, char **argv) {
             printf("draw_number_appear=<not available in local data>\n");
         }
 
-        printf("draw_number_size=");
-        print_numbers(item->draw_number_size, item->draw_number_size_len);
+        printf("numbers=");
+        print_numbers(item->numbers, item->numbers_len);
         printf("\n\n");
     }
 

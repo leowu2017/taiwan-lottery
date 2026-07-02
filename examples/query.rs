@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use taiwan_lottery::{
-    query_history_draw, query_history_draw_from_taiwan_lottory, HistoryDrawQuery, HistoryGame,
+    query_history_draw, query_history_draw_from_taiwan_lottery, HistoryDrawQuery, HistoryGame,
     HistorySession,
 };
 
@@ -92,7 +92,7 @@ fn main() {
         "remote" => {
             let session = parse_session(args.get(5));
             let query = parse_query(query_mode, &query_value, session);
-            query_history_draw_from_taiwan_lottory(game, query)
+            query_history_draw_from_taiwan_lottery(game, query)
         }
         _ => {
             print_usage(&program);
@@ -110,7 +110,7 @@ fn main() {
                     Some(numbers) => println!("draw_number_appear={:?}", numbers),
                     None => println!("draw_number_appear=<not available in local data>"),
                 }
-                println!("draw_number_size={:?}", item.draw_number_size);
+                println!("numbers={:?}", item.numbers);
                 println!();
             }
         }

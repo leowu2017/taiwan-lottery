@@ -15,7 +15,7 @@ The main entry header is:
 It exposes:
 
 - `query_history_draw(...)`: query from downloaded local history files (`output_dir/D423F`).
-- `query_history_draw_from_taiwan_lottory(...)`: query directly from Taiwan Lottery web API.
+- `query_history_draw_from_taiwan_lottery(...)`: query directly from Taiwan Lottery web API.
 - `free_history_draw_page(...)`: release memory allocated by the two query APIs.
 
 Prefer split headers by concern:

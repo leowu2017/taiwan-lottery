@@ -17,7 +17,7 @@ pub use download::{
     download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
 };
 pub use query::{
-    query_history_draw, query_history_draw_from_taiwan_lottory,
+    query_history_draw, query_history_draw_from_taiwan_lottery,
 };
 
 const CSV_BASE_URL: &str = "https://gaze.nta.gov.tw/dntmb/OpenData/csvDw?ntaCode=";
@@ -169,7 +169,7 @@ pub struct HistoryDrawItem {
     pub period: String,
     pub lottery_date: Option<String>,
     pub redeemable_date: Option<String>,
-    pub draw_number_size: Vec<i32>,
+    pub numbers: Vec<i32>,
     pub draw_number_appear: Option<Vec<i32>>,
 }
 
@@ -651,9 +651,9 @@ fn parse_history_draw_page(content: &serde_json::Value) -> Result<HistoryDrawPag
             continue;
         };
 
-        let draw_number_size = json_value_to_i32_vec(record_obj.get("drawNumberSize"));
+        let numbers = json_value_to_i32_vec(record_obj.get("drawNumberSize"));
         let draw_number_appear = json_value_to_i32_vec(record_obj.get("drawNumberAppear"));
-        if draw_number_size.is_empty() && draw_number_appear.is_empty() {
+        if numbers.is_empty() && draw_number_appear.is_empty() {
             continue;
         }
 
@@ -676,7 +676,7 @@ fn parse_history_draw_page(content: &serde_json::Value) -> Result<HistoryDrawPag
             period,
             lottery_date,
             redeemable_date,
-            draw_number_size,
+            numbers,
             draw_number_appear: Some(draw_number_appear),
         });
     }
@@ -684,7 +684,7 @@ fn parse_history_draw_page(content: &serde_json::Value) -> Result<HistoryDrawPag
     Ok(HistoryDrawPage { total_size, items })
 }
 
-fn get_history_draw_with_client(
+fn query_history_draw_with_client(
     client: &reqwest::blocking::Client,
     game: HistoryGame,
     query: &HistoryDrawQuery,
@@ -887,7 +887,7 @@ fn parse_history_csv_file(file_path: &Path) -> Result<Vec<LocalHistoryDrawRecord
     Ok(records)
 }
 
-fn get_history_draw_from_downloaded_data(
+fn query_history_draw_from_downloaded_data(
     output_dir: &Path,
     game: HistoryGame,
     query: &HistoryDrawQuery,
@@ -929,13 +929,13 @@ fn get_history_draw_from_downloaded_data(
     let items = all_records
         .iter()
         .map(|record| {
-            let draw_number_size = record.draw_number_appear.clone();
+            let numbers = record.draw_number_appear.clone();
 
             HistoryDrawItem {
                 period: record.period.clone(),
                 lottery_date: record.lottery_date.clone(),
                 redeemable_date: None,
-                draw_number_size,
+                numbers,
                 draw_number_appear: None,
             }
         })
@@ -1114,20 +1114,20 @@ pub(crate) fn download_history_draw_impl(output_dir: impl AsRef<Path>) -> Result
     }
 }
 
-pub(crate) fn get_history_draw_impl(
+pub(crate) fn query_history_draw_impl(
     output_dir: impl AsRef<Path>,
     game: HistoryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
-    get_history_draw_from_downloaded_data(output_dir.as_ref(), game, &query)
+    query_history_draw_from_downloaded_data(output_dir.as_ref(), game, &query)
 }
 
-pub(crate) fn get_history_draw_from_taiwan_lottory_impl(
+pub(crate) fn query_history_draw_from_taiwan_lottery_impl(
     game: HistoryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
     let client = build_http_client()?;
-    get_history_draw_with_client(&client, game, &query)
+    query_history_draw_with_client(&client, game, &query)
 }
 
 pub(crate) fn download_all_impl(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
@@ -1336,7 +1336,7 @@ mod tests {
         assert_eq!(page.total_size, 1);
         assert_eq!(page.items.len(), 1);
         assert_eq!(page.items[0].period, "112000116");
-        assert_eq!(page.items[0].draw_number_size, vec![1, 11, 23, 31, 39, 46, 17]);
+        assert_eq!(page.items[0].numbers, vec![1, 11, 23, 31, 39, 46, 17]);
         assert_eq!(
             page.items[0].draw_number_appear,
             Some(vec![31, 46, 11, 39, 23, 1, 17])
@@ -1374,7 +1374,7 @@ mod tests {
         assert_eq!(page.total_size, 1);
         assert_eq!(page.items.len(), 1);
         assert_eq!(page.items[0].draw_number_appear, None);
-        assert_eq!(page.items[0].draw_number_size, vec![3, 7, 16, 19, 40, 42, 12]);
+        assert_eq!(page.items[0].numbers, vec![3, 7, 16, 19, 40, 42, 12]);
 
         fs::remove_dir_all(&root).expect("cleanup temp dir");
     }
