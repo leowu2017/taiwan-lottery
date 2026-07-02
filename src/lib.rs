@@ -567,15 +567,26 @@ pub fn download_dataset(
     download_dataset_with_client(&client, output_dir, dataset_code)
 }
 
-pub fn download_history_draw(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
+pub fn download_history_draw_from_gov_data(
+    output_dir: impl AsRef<Path>,
+) -> Result<Vec<PathBuf>, DownloadError> {
     let output_dir = output_dir.as_ref();
     let client = build_http_client()?;
+    download_dataset_with_client(&client, output_dir, HISTORY_DRAW_CODE)
+}
 
-    match download_dataset_with_client(&client, output_dir, HISTORY_DRAW_CODE) {
+pub fn download_history_draw_from_taiwan_lottery(
+    output_dir: impl AsRef<Path>,
+) -> Result<Vec<PathBuf>, DownloadError> {
+    let output_dir = output_dir.as_ref();
+    let client = build_http_client()?;
+    download_history_draw_from_taiwan_lottery_with_client(&client, output_dir)
+}
+
+pub fn download_history_draw(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
+    match download_history_draw_from_gov_data(output_dir.as_ref()) {
         Ok(files) => Ok(files),
-        Err(DownloadError::Http(_)) => {
-            download_history_draw_from_taiwan_lottery_with_client(&client, output_dir)
-        }
+        Err(DownloadError::Http(_)) => download_history_draw_from_taiwan_lottery(output_dir.as_ref()),
         Err(err) => Err(err),
     }
 }
