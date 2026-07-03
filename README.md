@@ -75,12 +75,15 @@ Example output layout:
 
 - `query_history_draw(output_dir, game, query)`:
 	Reads history draw data from files that were downloaded by `download_history_draw` (under `output_dir/D423F/`).
-	This source only guarantees sorted draw numbers (`numbers_sorted`).
-	`numbers_draw` is returned as `null` to avoid misleading interpretation.
+	This source returns `HistoryDrawItem.numbers.base.numbers` as the primary numbers.
+	When a sorted view is available, it is exposed via `HistoryDrawItem.numbers.sorted`.
 - `query_history_draw_from_taiwan_lottery(game, query)`:
-	Calls Taiwan Lottery website API directly. This source can provide both:
-	1) draw order (`numbers_draw`),
-	2) sorted order (`numbers_sorted`).
+	Calls Taiwan Lottery website API directly.
+	This source returns draw-order numbers in `HistoryDrawItem.numbers.base.numbers`, and sorted numbers in `HistoryDrawItem.numbers.sorted` when available.
+
+- `draw_by_game(game)`:
+	Performs a random draw for a specific game and returns `DrawResult`.
+	The primary numbers are stored in `DrawResult.base.numbers`, and optional bonus data is stored in `DrawResult.bonus`.
 
 - `download_all(output_dir)`:
 	Downloads API docs and all datasets listed in the docs.
@@ -100,8 +103,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let page = query_history_draw("data", HistoryGame::Lotto649, query)?;
 	for item in page.items {
 		println!("period={}", item.period);
-		println!("numbers_draw={:?}", item.numbers_draw); // local source is None
-		println!("numbers_sorted={:?}", item.numbers_sorted);
+		println!("numbers={:?}", item.numbers.base.numbers);
+		println!("numbers_sorted={:?}", item.numbers.sorted);
 	}
 
 	Ok(())
@@ -116,8 +119,22 @@ Examples:
 - `cargo run --example download -- history-draw`
 - `cargo run --example download -- history-draw-gov`
 - `cargo run --example download -- history-draw-taiwan-lottery`
+- `cargo run --example draw -- lotto649`
 - `cargo run --example query -- local lotto649 period 115000001 data`
 - `cargo run --example query -- remote lotto649 month 2026-01`
+
+## Test
+
+Rust tests:
+
+- `cargo test`
+
+C examples and tests:
+
+- `cargo build --release`
+- `cmake -S c -B c/build`
+- `cmake --build c/build --config Release`
+- `ctest --test-dir c/build --build-config Release --output-on-failure`
 
 ## C Example
 
@@ -135,6 +152,7 @@ The C example mirrors the same modes as the Rust example:
 Source file:
 
 - `c/examples/download.c`
+- `c/examples/draw.c`
 - `c/examples/query.c`
 
 Example build (CMake):
@@ -145,6 +163,7 @@ Example build (CMake):
 
 Example run:
 
+- `c/build/draw lotto649`
 - `c/build/download all data`
 - `c/build/download api-doc data`
 - `c/build/download dataset D416F data`
@@ -153,3 +172,7 @@ Example run:
 - `c/build/download history-draw-taiwan-lottery data`
 - `c/build/query local lotto649 period 115000001 data`
 - `c/build/query remote lotto649 month 2026-01`
+
+C test run:
+
+- `ctest --test-dir c/build --build-config Release --output-on-failure`

@@ -137,17 +137,17 @@ int main(int argc, char **argv) {
         printf("period=%s\n", item->period != NULL ? item->period : "");
         printf("date=%s\n", item->date != NULL ? item->date : "");
 
-        if (item->numbers_draw != NULL && item->numbers_draw_len > 0) {
-            printf("numbers_draw=");
-            print_numbers(item->numbers_draw, item->numbers_draw_len);
-            printf("\n");
-        } else {
-            printf("numbers_draw=<not available in local data>\n");
-        }
+        printf("numbers=");
+        print_numbers(item->numbers.base.numbers, item->numbers.base.numbers_len);
+        printf("\n");
 
-        printf("numbers_sorted=");
-        print_numbers(item->numbers_sorted, item->numbers_sorted_len);
-        printf("\n\n");
+        if (item->numbers.sorted_numbers != NULL && item->numbers.sorted_numbers_len > 0) {
+            printf("numbers_sorted=");
+            print_numbers(item->numbers.sorted_numbers, item->numbers.sorted_numbers_len);
+            printf("\n\n");
+        } else {
+            printf("numbers_sorted=<not available>\n\n");
+        }
     }
 
     free_history_draw_page(page);

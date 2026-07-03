@@ -122,11 +122,11 @@ fn main() {
             for item in page.items {
                 println!("period={}", item.period);
                 println!("date={}", item.date.as_deref().unwrap_or(""));
-                match item.numbers_draw {
-                    Some(numbers_draw) => println!("numbers_draw={:?}", numbers_draw),
-                    None => println!("numbers_draw=<not available in local data>"),
+                println!("numbers={:?}", item.numbers.base.numbers);
+                match item.numbers.sorted {
+                    Some(numbers_sorted) => println!("numbers_sorted={:?}", numbers_sorted),
+                    None => println!("numbers_sorted=<not available>"),
                 }
-                println!("numbers_sorted={:?}", item.numbers_sorted);
                 println!();
             }
         }

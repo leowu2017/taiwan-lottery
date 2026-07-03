@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 use crate::{
     download_all, download_api_doc, download_dataset, download_history_draw,
     download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
-    query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError,
+    draw_by_game, query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError,
     HistoryDrawQuery, HistoryGame,
 };
 
@@ -24,14 +24,31 @@ enum DownloadStatus {
 }
 
 #[repr(C)]
+pub struct DrawNumbersC {
+    numbers: *mut i32,
+    numbers_len: usize,
+}
+
+#[repr(C)]
+pub struct BonusDrawNumbersC {
+    base: DrawNumbersC,
+    has_bonus: i32,
+    bonus: i32,
+}
+
+#[repr(C)]
+pub struct SortedDrawNumbersC {
+    base: DrawNumbersC,
+    sorted_numbers: *mut i32,
+    sorted_numbers_len: usize,
+}
+
+#[repr(C)]
 pub struct HistoryDrawItemC {
     period: *mut c_char,
     date: *mut c_char,
     redeemable_date: *mut c_char,
-    numbers_sorted: *mut i32,
-    numbers_sorted_len: usize,
-    numbers_draw: *mut i32,
-    numbers_draw_len: usize,
+    numbers: SortedDrawNumbersC,
 }
 
 #[repr(C)]
@@ -40,6 +57,8 @@ pub struct HistoryDrawPageC {
     item_count: usize,
     items: *mut HistoryDrawItemC,
 }
+
+pub type DrawResultC = BonusDrawNumbersC;
 
 #[unsafe(export_name = "download_api_doc")]
 pub extern "C" fn download_api_doc_ffi(output_dir: *const c_char) -> i32 {
@@ -186,6 +205,37 @@ pub extern "C" fn query_history_draw_from_taiwan_lottery_ffi(
     map_history_result_to_struct_status(result, out_page)
 }
 
+#[unsafe(export_name = "draw_by_game")]
+pub extern "C" fn draw_by_game_ffi(game: i32, out_result: *mut *mut DrawResultC) -> i32 {
+    let game = match int_to_history_game(game) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    if out_result.is_null() {
+        return DownloadStatus::NullResultPointer as i32;
+    }
+
+    let result = draw_by_game(game);
+    let c_result = draw_result_to_c(result);
+
+    unsafe {
+        *out_result = Box::into_raw(c_result);
+    }
+
+    DownloadStatus::Success as i32
+}
+
+#[unsafe(export_name = "free_draw_result")]
+pub extern "C" fn free_draw_result_ffi(result: *mut DrawResultC) {
+    if result.is_null() {
+        return;
+    }
+
+    let result = unsafe { Box::from_raw(result) };
+    free_draw_numbers(&result.base);
+}
+
 #[unsafe(export_name = "free_history_draw_page")]
 pub extern "C" fn free_history_draw_page_ffi(page: *mut HistoryDrawPageC) {
     if page.is_null() {
@@ -313,35 +363,51 @@ fn history_page_to_c(page: crate::HistoryDrawPage) -> Box<HistoryDrawPageC> {
     })
 }
 
+fn draw_result_to_c(result: crate::DrawResult) -> Box<DrawResultC> {
+    Box::new(DrawResultC {
+        base: draw_numbers_to_c(result.base),
+        has_bonus: i32::from(result.bonus.is_some()),
+        bonus: result.bonus.unwrap_or_default(),
+    })
+}
+
 fn history_item_to_c(item: crate::HistoryDrawItem) -> HistoryDrawItemC {
-    let numbers_sorted_len = item.numbers_sorted.len();
-    let numbers_sorted_ptr = if numbers_sorted_len == 0 {
-        std::ptr::null_mut()
-    } else {
-        Box::into_raw(item.numbers_sorted.into_boxed_slice()) as *mut i32
-    };
-
-    let (numbers_draw_ptr, numbers_draw_len) =
-        if let Some(numbers_draw) = item.numbers_draw {
-            if numbers_draw.is_empty() {
-                (std::ptr::null_mut(), 0)
-            } else {
-                let len = numbers_draw.len();
-                let ptr = Box::into_raw(numbers_draw.into_boxed_slice()) as *mut i32;
-                (ptr, len)
-            }
-        } else {
-            (std::ptr::null_mut(), 0)
-        };
-
     HistoryDrawItemC {
         period: string_to_c_ptr(item.period),
         date: optional_string_to_c_ptr(item.date),
         redeemable_date: optional_string_to_c_ptr(item.redeemable_date),
-        numbers_sorted: numbers_sorted_ptr,
-        numbers_sorted_len,
-        numbers_draw: numbers_draw_ptr,
-        numbers_draw_len,
+        numbers: sorted_draw_numbers_to_c(item.numbers),
+    }
+}
+
+fn draw_numbers_to_c(numbers: crate::DrawNumbers) -> DrawNumbersC {
+    let numbers_len = numbers.numbers.len();
+    let numbers_ptr = if numbers_len == 0 {
+        std::ptr::null_mut()
+    } else {
+        Box::into_raw(numbers.numbers.into_boxed_slice()) as *mut i32
+    };
+
+    DrawNumbersC {
+        numbers: numbers_ptr,
+        numbers_len,
+    }
+}
+
+fn sorted_draw_numbers_to_c(numbers: crate::SortedDrawNumbers) -> SortedDrawNumbersC {
+    let (sorted_numbers, sorted_numbers_len) = match numbers.sorted {
+        Some(sorted_numbers) if !sorted_numbers.is_empty() => {
+            let len = sorted_numbers.len();
+            let ptr = Box::into_raw(sorted_numbers.into_boxed_slice()) as *mut i32;
+            (ptr, len)
+        }
+        _ => (std::ptr::null_mut(), 0),
+    };
+
+    SortedDrawNumbersC {
+        base: draw_numbers_to_c(numbers.base),
+        sorted_numbers,
+        sorted_numbers_len,
     }
 }
 
@@ -359,22 +425,28 @@ fn free_history_draw_item(item: &HistoryDrawItemC) {
         let _ = unsafe { CString::from_raw(item.redeemable_date) };
     }
 
-    if !item.numbers_sorted.is_null() {
-        // SAFETY: pointer/len pair was created from Box<[i32]> in this crate.
+    free_sorted_draw_numbers(&item.numbers);
+}
+
+fn free_draw_numbers(numbers: &DrawNumbersC) {
+    if !numbers.numbers.is_null() {
         let _ = unsafe {
             Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                item.numbers_sorted,
-                item.numbers_sorted_len,
+                numbers.numbers,
+                numbers.numbers_len,
             ))
         };
     }
+}
 
-    if !item.numbers_draw.is_null() {
-        // SAFETY: pointer/len pair was created from Box<[i32]> in this crate.
+fn free_sorted_draw_numbers(numbers: &SortedDrawNumbersC) {
+    free_draw_numbers(&numbers.base);
+
+    if !numbers.sorted_numbers.is_null() {
         let _ = unsafe {
             Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                item.numbers_draw,
-                item.numbers_draw_len,
+                numbers.sorted_numbers,
+                numbers.sorted_numbers_len,
             ))
         };
     }
