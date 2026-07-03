@@ -1,8 +1,7 @@
 #ifndef TAIWAN_LOTTERY_QUERY_H
 #define TAIWAN_LOTTERY_QUERY_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include <taiwan_lottery/numbers.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,10 +37,7 @@ typedef struct taiwan_lottery_history_draw_item {
 	char* period;
 	char* date;
 	char* redeemable_date;
-	int32_t* numbers_sorted;
-	size_t numbers_sorted_len;
-	int32_t* numbers_draw;
-	size_t numbers_draw_len;
+	sorted_draw_numbers numbers;
 } taiwan_lottery_history_draw_item;
 
 typedef struct taiwan_lottery_history_draw_page {
