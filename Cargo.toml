@@ -1,7 +1,16 @@
 [package]
 name = "taiwan-lottery"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "Taiwan lottery download, query, and random draw capabilities with Rust and C APIs"
+authors = ["Leo Wu"]
+license = "MIT"
+repository = "https://github.com/leowu2017/taiwan-lottery"
+homepage = "https://github.com/leowu2017/taiwan-lottery"
+documentation = "https://docs.rs/taiwan-lottery"
+readme = "README.md"
+keywords = ["lottery", "taiwan", "download", "query", "draw"]
+categories = ["api-bindings", "command-line-utilities"]
 
 [lib]
 crate-type = ["rlib", "cdylib", "staticlib"]
