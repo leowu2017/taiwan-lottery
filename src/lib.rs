@@ -1,3 +1,43 @@
+//! Taiwan Lottery library providing download, query, and random draw capabilities.
+//!
+//! This library offers both Rust and C APIs for:
+//! - **Download**: Fetch lottery datasets from Taiwan's open data sources
+//! - **Query**: Search historical lottery results by period, month, or month range
+//! - **Draw**: Generate random lottery draws for supported games
+//!
+//! # Overview
+//!
+//! The library uses two primary data sources:
+//! - **FinancialPlanning OpenData** (via `D423F` dataset) - Primary source for historical draws
+//! - **Taiwan Lottery API** - Fallback source for recent results
+//!
+//! # Quick Start
+//!
+//! ## Download historical data
+//!
+//! ```ignore
+//! use taiwan_lottery::download_history_draw;
+//!
+//! download_history_draw("./data")?;
+//! ```
+//!
+//! ## Query results
+//!
+//! ```ignore
+//! use taiwan_lottery::{query_history_draw, HistoryDrawQuery, HistoryGame};
+//!
+//! let query = HistoryDrawQuery::by_month("2023-12");
+//! let results = query_history_draw("./data", HistoryGame::Lotto649, query)?;
+//! ```
+//!
+//! ## Generate random draw
+//!
+//! ```ignore
+//! use taiwan_lottery::{draw_by_game, HistoryGame};
+//!
+//! let result = draw_by_game(HistoryGame::Lotto649);
+//! ```
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -17,12 +57,12 @@ pub use download::{
     download_all, download_api_doc, download_dataset, download_history_draw,
     download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
 };
-pub use draw::{DrawResult, draw_by_game};
+pub use draw::{draw_by_game, DrawResult};
 pub use errors::DownloadError;
 pub use numbers::{
-    BonusDrawNumbers, Daily539Numbers, DrawNumbers, Lotto3DNumbers, Lotto4DNumbers,
-    Lotto38M6Numbers, Lotto39M5Numbers, Lotto49M6Numbers, Lotto638Numbers, Lotto649Numbers,
-    Lotto740Numbers, Lotto1224Numbers, SortedDrawNumbers, SuperLotto638Numbers, TicTacToeNumbers,
+    BonusDrawNumbers, Daily539Numbers, DrawNumbers, Lotto1224Numbers, Lotto38M6Numbers,
+    Lotto39M5Numbers, Lotto3DNumbers, Lotto49M6Numbers, Lotto4DNumbers, Lotto638Numbers,
+    Lotto649Numbers, Lotto740Numbers, SortedDrawNumbers, SuperLotto638Numbers, TicTacToeNumbers,
 };
 pub use query::{query_history_draw, query_history_draw_from_taiwan_lottery};
 
@@ -36,6 +76,10 @@ const TAIWAN_LOTTERY_RESULT_DOWNLOAD_URL: &str =
 const TAIWAN_LOTTERY_FALLBACK_START_YEAR: i32 = 2007;
 const TAIWAN_LOTTERY_FALLBACK_MAX_YEAR: i32 = 2200;
 
+/// Supported lottery games for historical draw queries and random draws.
+///
+/// Each variant represents a different Taiwan lottery game. Use this with
+/// [`query_history_draw`], [`query_history_draw_from_taiwan_lottery`], or [`draw_by_game`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HistoryGame {
     SuperLotto638,
@@ -79,6 +123,12 @@ impl HistoryGame {
     }
 }
 
+/// Query parameters for historical lottery draw searches.
+///
+/// Use builder methods to construct queries:
+/// - [`by_period`](HistoryDrawQuery::by_period) - Query by a specific period
+/// - [`by_month`](HistoryDrawQuery::by_month) - Query a single month
+/// - [`by_month_range`](HistoryDrawQuery::by_month_range) - Query a date range
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HistoryDrawQuery {
     pub period: Option<String>,
@@ -144,6 +194,10 @@ impl HistoryDrawQuery {
     }
 }
 
+/// A single lottery draw result from historical data.
+///
+/// Contains the draw period/date and corresponding numbers. The `numbers` field
+/// contains both base numbers (in draw order) and sorted numbers when available.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct HistoryDrawItem {
     pub period: String,
@@ -152,6 +206,9 @@ pub struct HistoryDrawItem {
     pub numbers: SortedDrawNumbers,
 }
 
+/// Paginated result set from a historical lottery draw query.
+///
+/// Contains the total number of matching results and a collection of individual draw items.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct HistoryDrawPage {
     pub total_size: usize,
@@ -506,11 +563,11 @@ fn pick_download_file_name(
     })
     .unwrap_or_else(|| format!("download_{fallback_index}.bin"));
 
-    if file_name.rsplit_once('.').is_none()
-        && let Some(extension) = extension_from_content_type(headers)
-    {
-        file_name.push('.');
-        file_name.push_str(extension);
+    if file_name.rsplit_once('.').is_none() {
+        if let Some(extension) = extension_from_content_type(headers) {
+            file_name.push('.');
+            file_name.push_str(extension);
+        }
     }
 
     file_name
@@ -538,11 +595,11 @@ fn download_csv_linked_files(
         let mut file_name = pick_download_file_name(link, &headers, index + 1);
         let file_bytes = response.bytes()?;
 
-        if file_name.rsplit_once('.').is_none()
-            && let Some(extension) = extension_from_magic_bytes(&file_bytes)
-        {
-            file_name.push('.');
-            file_name.push_str(extension);
+        if file_name.rsplit_once('.').is_none() {
+            if let Some(extension) = extension_from_magic_bytes(&file_bytes) {
+                file_name.push('.');
+                file_name.push_str(extension);
+            }
         }
 
         if !used_file_names.insert(file_name.clone()) {
@@ -614,7 +671,11 @@ fn parse_history_draw_page(content: &serde_json::Value) -> Result<HistoryDrawPag
                     || record_obj.contains_key("drawNumberSize")
             });
 
-            if has_draw_fields { Some(records) } else { None }
+            if has_draw_fields {
+                Some(records)
+            } else {
+                None
+            }
         })
         .ok_or_else(|| std::io::Error::other("history response does not include draw records"))?;
 

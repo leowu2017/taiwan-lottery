@@ -67,17 +67,29 @@ impl SortedDrawNumbers {
     }
 }
 
+/// SuperLotto 638 draw numbers with bonus.
 pub type SuperLotto638Numbers = BonusDrawNumbers;
+/// Lotto 649 draw numbers with bonus.
 pub type Lotto649Numbers = BonusDrawNumbers;
+/// Daily 539 draw numbers with bonus.
 pub type Daily539Numbers = BonusDrawNumbers;
+/// Lotto 3D draw numbers without bonus.
 pub type Lotto3DNumbers = DrawNumbers;
+/// Lotto 4D draw numbers without bonus.
 pub type Lotto4DNumbers = DrawNumbers;
+/// Lotto 49/6 draw numbers without bonus.
 pub type Lotto49M6Numbers = DrawNumbers;
+/// Lotto 39/5 draw numbers without bonus.
 pub type Lotto39M5Numbers = DrawNumbers;
+/// Lotto 38/6 draw numbers without bonus.
 pub type Lotto38M6Numbers = DrawNumbers;
+/// Lotto 1224 draw numbers without bonus.
 pub type Lotto1224Numbers = DrawNumbers;
+/// Lotto 740 draw numbers with bonus.
 pub type Lotto740Numbers = BonusDrawNumbers;
+/// Tic-Tac-Toe draw numbers without bonus.
 pub type TicTacToeNumbers = DrawNumbers;
+/// Lotto 638 draw numbers with bonus.
 pub type Lotto638Numbers = BonusDrawNumbers;
 
 #[cfg(test)]

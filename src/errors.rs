@@ -1,3 +1,7 @@
+/// Error types that can occur during download, parsing, or API operations.
+///
+/// This enum wraps errors from various operations including file I/O, HTTP requests,
+/// JSON parsing, CSV parsing, and ZIP extraction.
 #[derive(Debug)]
 pub enum DownloadError {
     Io(std::io::Error),

@@ -5,7 +5,28 @@ use rand::seq::SliceRandom;
 /// Draw result for a random draw outcome.
 pub type DrawResult = BonusDrawNumbers;
 
-/// Perform a random draw based on the game type
+/// Perform a random draw based on the game type and return the drawn numbers.
+///
+/// Generates random numbers according to the game's rules. The returned numbers
+/// are not sorted - they appear in draw order. If the game has a bonus number,
+/// it is stored in the [`BonusDrawNumbers::bonus`] field.
+///
+/// # Arguments
+/// * `game` - The lottery game to draw for
+///
+/// # Returns
+/// A [`DrawResult`] containing the drawn numbers and optional bonus.
+///
+/// # Example
+/// ```ignore
+/// use taiwan_lottery::{draw_by_game, HistoryGame};
+///
+/// let result = draw_by_game(HistoryGame::Lotto649);
+/// println!("Numbers: {:?}", result.base.numbers);
+/// if let Some(bonus) = result.bonus {
+///     println!("Bonus: {}", bonus);
+/// }
+/// ```
 pub fn draw_by_game(game: HistoryGame) -> DrawResult {
     let mut rng = rand::thread_rng();
 
