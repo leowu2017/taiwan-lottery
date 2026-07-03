@@ -2,17 +2,17 @@ use std::path::PathBuf;
 
 use taiwan_lottery::{
     query_history_draw, query_history_draw_from_taiwan_lottery, HistoryDrawQuery, HistoryGame,
-    HistorySession,
 };
 
 fn print_usage(program: &str) {
     eprintln!("Usage:");
-    eprintln!("  {program} local <game> period <PERIOD> [output_dir] [session]");
-    eprintln!("  {program} local <game> month <YYYY-MM> [output_dir] [session]");
-    eprintln!("  {program} remote <game> period <PERIOD> [session]");
-    eprintln!("  {program} remote <game> month <YYYY-MM> [session]");
+    eprintln!("  {program} local <game> period <PERIOD> [output_dir]");
+    eprintln!("  {program} local <game> month <YYYY-MM> [output_dir]");
+    eprintln!("  {program} local <game> month-range <YYYY-MM> <YYYY-MM> [output_dir]");
+    eprintln!("  {program} remote <game> period <PERIOD>");
+    eprintln!("  {program} remote <game> month <YYYY-MM>");
+    eprintln!("  {program} remote <game> month-range <YYYY-MM> <YYYY-MM>");
     eprintln!("  game: super-lotto638 | lotto649 | daily539 | 3d | 4d | 49m6 | 39m5 | 38m6 | 1224 | 740 | tic-tac-toe | 638");
-    eprintln!("  session: third | fourth | fifth (default: fifth)");
 }
 
 fn default_output_dir() -> PathBuf {
@@ -37,21 +37,18 @@ fn parse_game(value: &str) -> Option<HistoryGame> {
     }
 }
 
-fn parse_session(value: Option<&String>) -> HistorySession {
-    match value.map(|v| v.to_ascii_lowercase()) {
-        Some(v) if v == "third" => HistorySession::Third,
-        Some(v) if v == "fourth" => HistorySession::Fourth,
-        _ => HistorySession::Fifth,
-    }
-}
 
-fn parse_query(mode: &str, value: &str, session: HistorySession) -> HistoryDrawQuery {
-    let mut query = match mode {
-        "period" => HistoryDrawQuery::by_period(value.to_string()),
-        _ => HistoryDrawQuery::by_month(value.to_string()),
+fn parse_query(mode: &str, args: &[String], value_index: usize) -> Option<HistoryDrawQuery> {
+    let value = args.get(value_index)?.clone();
+    let query = match mode {
+        "period" => HistoryDrawQuery::by_period(value),
+        "month-range" => {
+            let end_month = args.get(value_index + 1).cloned().unwrap_or_else(|| value.clone());
+            HistoryDrawQuery::by_month_range(value, end_month)
+        }
+        _ => HistoryDrawQuery::by_month(value),
     };
-    query.session = session;
-    query
+    Some(query)
 }
 
 fn main() {
@@ -71,27 +68,46 @@ fn main() {
     };
 
     let query_mode = args[3].as_str();
-    if query_mode != "period" && query_mode != "month" {
-        eprintln!("Query mode must be period or month");
+    if query_mode != "period" && query_mode != "month" && query_mode != "month-range" {
+        eprintln!("Query mode must be period, month, or month-range");
         print_usage(&program);
         std::process::exit(2);
     }
 
-    let query_value = args[4].clone();
+    // month-range takes two values: <start> <end>, others take one
+    let value_count = if query_mode == "month-range" { 2 } else { 1 };
 
     let result = match source {
         "local" => {
+            if args.len() < 4 + value_count {
+                eprintln!("Missing query value(s) for mode: {query_mode}");
+                print_usage(&program);
+                std::process::exit(2);
+            }
+
             let output_dir = args
-                .get(5)
+                .get(4 + value_count)
                 .map(PathBuf::from)
                 .unwrap_or_else(default_output_dir);
-            let session = parse_session(args.get(6));
-            let query = parse_query(query_mode, &query_value, session);
+            let Some(query) = parse_query(query_mode, &args, 4) else {
+                eprintln!("Missing query value");
+                print_usage(&program);
+                std::process::exit(2);
+            };
             query_history_draw(output_dir, game, query)
         }
         "remote" => {
-            let session = parse_session(args.get(5));
-            let query = parse_query(query_mode, &query_value, session);
+            if args.len() < 4 + value_count {
+                eprintln!("Missing query value(s) for mode: {query_mode}");
+                print_usage(&program);
+                std::process::exit(2);
+            }
+
+            let Some(query) = parse_query(query_mode, &args, 4) else {
+                eprintln!("Missing query value");
+                print_usage(&program);
+                std::process::exit(2);
+            };
             query_history_draw_from_taiwan_lottery(game, query)
         }
         _ => {
@@ -105,12 +121,12 @@ fn main() {
             println!("total_size={}", page.total_size);
             for item in page.items {
                 println!("period={}", item.period);
-                println!("lottery_date={}", item.lottery_date.as_deref().unwrap_or(""));
-                match item.draw_number_appear {
-                    Some(numbers) => println!("draw_number_appear={:?}", numbers),
-                    None => println!("draw_number_appear=<not available in local data>"),
+                println!("date={}", item.date.as_deref().unwrap_or(""));
+                match item.numbers_draw {
+                    Some(numbers_draw) => println!("numbers_draw={:?}", numbers_draw),
+                    None => println!("numbers_draw=<not available in local data>"),
                 }
-                println!("numbers={:?}", item.numbers);
+                println!("numbers_sorted={:?}", item.numbers_sorted);
                 println!();
             }
         }

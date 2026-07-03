@@ -30,19 +30,6 @@ const TAIWAN_LOTTERY_FALLBACK_START_YEAR: i32 = 2007;
 const TAIWAN_LOTTERY_FALLBACK_MAX_YEAR: i32 = 2200;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HistorySession {
-    Third,
-    Fourth,
-    Fifth,
-}
-
-impl Default for HistorySession {
-    fn default() -> Self {
-        Self::Fifth
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HistoryGame {
     SuperLotto638,
     Lotto649,
@@ -84,15 +71,6 @@ impl HistoryGame {
         }
     }
 
-    fn api_path_for_session(self, session: HistorySession) -> &'static str {
-        if session != HistorySession::Fifth {
-            if let Some(history_path) = self.history_session_path() {
-                return history_path;
-            }
-        }
-
-        self.path()
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,7 +78,6 @@ pub struct HistoryDrawQuery {
     pub period: Option<String>,
     pub month: Option<String>,
     pub end_month: Option<String>,
-    pub session: HistorySession,
 }
 
 impl Default for HistoryDrawQuery {
@@ -109,7 +86,6 @@ impl Default for HistoryDrawQuery {
             period: None,
             month: None,
             end_month: None,
-            session: HistorySession::Fifth,
         }
     }
 }
@@ -167,10 +143,10 @@ impl HistoryDrawQuery {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct HistoryDrawItem {
     pub period: String,
-    pub lottery_date: Option<String>,
+    pub date: Option<String>,
     pub redeemable_date: Option<String>,
-    pub numbers: Vec<i32>,
-    pub draw_number_appear: Option<Vec<i32>>,
+    pub numbers_sorted: Vec<i32>,
+    pub numbers_draw: Option<Vec<i32>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -182,8 +158,8 @@ pub struct HistoryDrawPage {
 #[derive(Debug, Clone)]
 struct LocalHistoryDrawRecord {
     period: String,
-    lottery_date: Option<String>,
-    draw_number_appear: Vec<i32>,
+    date: Option<String>,
+    numbers_sorted: Vec<i32>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -651,9 +627,9 @@ fn parse_history_draw_page(content: &serde_json::Value) -> Result<HistoryDrawPag
             continue;
         };
 
-        let numbers = json_value_to_i32_vec(record_obj.get("drawNumberSize"));
-        let draw_number_appear = json_value_to_i32_vec(record_obj.get("drawNumberAppear"));
-        if numbers.is_empty() && draw_number_appear.is_empty() {
+        let numbers_sorted = json_value_to_i32_vec(record_obj.get("drawNumberSize"));
+        let numbers_draw = json_value_to_i32_vec(record_obj.get("drawNumberAppear"));
+        if numbers_sorted.is_empty() && numbers_draw.is_empty() {
             continue;
         }
 
@@ -663,7 +639,7 @@ fn parse_history_draw_page(content: &serde_json::Value) -> Result<HistoryDrawPag
             _ => String::new(),
         };
 
-        let lottery_date = record_obj
+        let date = record_obj
             .get("lotteryDate")
             .and_then(|value| value.as_str())
             .map(ToOwned::to_owned);
@@ -674,24 +650,23 @@ fn parse_history_draw_page(content: &serde_json::Value) -> Result<HistoryDrawPag
 
         items.push(HistoryDrawItem {
             period,
-            lottery_date,
+            date,
             redeemable_date,
-            numbers,
-            draw_number_appear: Some(draw_number_appear),
+            numbers_sorted,
+            numbers_draw: Some(numbers_draw),
         });
     }
 
     Ok(HistoryDrawPage { total_size, items })
 }
 
-fn query_history_draw_with_client(
+fn fetch_all_pages_from_url(
     client: &reqwest::blocking::Client,
-    game: HistoryGame,
-    query: &HistoryDrawQuery,
-) -> Result<HistoryDrawPage, DownloadError> {
-    let (period, month, end_month) = query.normalized_params()?;
-    let url = format!("{TAIWAN_LOTTERY_API_BASE_URL}{}", game.api_path_for_session(query.session));
-
+    url: &str,
+    period: &str,
+    month: &str,
+    end_month: &str,
+) -> Result<Vec<HistoryDrawItem>, DownloadError> {
     let page_size = 200usize;
     let mut page_num = 1usize;
     let mut total_size = 0usize;
@@ -699,7 +674,7 @@ fn query_history_draw_with_client(
 
     loop {
         let response_body = client
-            .get(&url)
+            .get(url)
             .query(&[
                 ("period", period),
                 ("month", month),
@@ -748,10 +723,33 @@ fn query_history_draw_with_client(
         page_num += 1;
     }
 
-    Ok(HistoryDrawPage {
-        total_size: total_size.max(all_items.len()),
-        items: all_items,
-    })
+    Ok(all_items)
+}
+
+fn query_history_draw_with_client(
+    client: &reqwest::blocking::Client,
+    game: HistoryGame,
+    query: &HistoryDrawQuery,
+) -> Result<HistoryDrawPage, DownloadError> {
+    let (period, month, end_month) = query.normalized_params()?;
+    let main_url = format!("{TAIWAN_LOTTERY_API_BASE_URL}{}", game.path());
+    let mut all_items = fetch_all_pages_from_url(client, &main_url, period, month, end_month)?;
+
+    // For games that have a separate history endpoint (3D, 4D), automatically
+    // query it as well so callers automatically get merged results.
+    if let Some(history_path) = game.history_session_path() {
+        let history_url = format!("{TAIWAN_LOTTERY_API_BASE_URL}{history_path}");
+        let history_items = fetch_all_pages_from_url(client, &history_url, period, month, end_month)?;
+        all_items.extend(history_items);
+    }
+
+    // Deduplicate by period, keeping the first occurrence, then sort ascending.
+    let mut seen = std::collections::HashSet::new();
+    all_items.retain(|item| seen.insert(item.period.clone()));
+    all_items.sort_by(|a, b| a.period.cmp(&b.period));
+
+    let total_size = all_items.len();
+    Ok(HistoryDrawPage { total_size, items: all_items })
 }
 
 fn history_game_file_prefixes(game: HistoryGame) -> &'static [&'static str] {
@@ -815,8 +813,8 @@ fn collect_history_csv_files(root: &Path, output: &mut Vec<PathBuf>) -> Result<(
     Ok(())
 }
 
-fn parse_lottery_date_month(lottery_date: &str) -> Option<String> {
-    let normalized = lottery_date.trim().replace('/', "-");
+fn parse_date_month(date: &str) -> Option<String> {
+    let normalized = date.trim().replace('/', "-");
     if normalized.len() >= 7 {
         Some(normalized[..7].to_string())
     } else {
@@ -856,7 +854,7 @@ fn parse_history_csv_file(file_path: &Path) -> Result<Vec<LocalHistoryDrawRecord
                 file_path.display()
             ))
         })?;
-    let lottery_date_index = headers.iter().position(|header| header.trim() == "開獎日期");
+    let date_index = headers.iter().position(|header| header.trim() == "開獎日期");
 
     let mut records = Vec::new();
     for row in reader.records() {
@@ -866,12 +864,12 @@ fn parse_history_csv_file(file_path: &Path) -> Result<Vec<LocalHistoryDrawRecord
             continue;
         }
 
-        let draw_number_appear = extract_draw_numbers(&headers, &row);
-        if draw_number_appear.is_empty() {
+        let numbers_sorted = extract_draw_numbers(&headers, &row);
+        if numbers_sorted.is_empty() {
             continue;
         }
 
-        let lottery_date = lottery_date_index
+        let date = date_index
             .and_then(|index| row.get(index))
             .map(str::trim)
             .filter(|value| !value.is_empty())
@@ -879,8 +877,8 @@ fn parse_history_csv_file(file_path: &Path) -> Result<Vec<LocalHistoryDrawRecord
 
         records.push(LocalHistoryDrawRecord {
             period,
-            lottery_date,
-            draw_number_appear,
+            date,
+            numbers_sorted,
         });
     }
 
@@ -915,9 +913,9 @@ fn query_history_draw_from_downloaded_data(
     } else {
         all_records.retain(|record| {
             record
-                .lottery_date
+                .date
                 .as_deref()
-                .and_then(parse_lottery_date_month)
+                .and_then(parse_date_month)
                 .is_some_and(|value| value == month)
         });
     }
@@ -929,14 +927,19 @@ fn query_history_draw_from_downloaded_data(
     let items = all_records
         .iter()
         .map(|record| {
-            let numbers = record.draw_number_appear.clone();
+            let (numbers_sorted, numbers_draw) = match game {
+                HistoryGame::Lotto3D | HistoryGame::Lotto4D => {
+                    (Vec::new(), Some(record.numbers_sorted.clone()))
+                }
+                _ => (record.numbers_sorted.clone(), None),
+            };
 
             HistoryDrawItem {
                 period: record.period.clone(),
-                lottery_date: record.lottery_date.clone(),
+                date: record.date.clone(),
                 redeemable_date: None,
-                numbers,
-                draw_number_appear: None,
+                numbers_sorted,
+                numbers_draw,
             }
         })
         .collect();
@@ -1306,18 +1309,6 @@ mod tests {
     }
 
     #[test]
-    fn history_game_3d_uses_history_endpoint_outside_fifth_session() {
-        assert_eq!(
-            HistoryGame::Lotto3D.api_path_for_session(HistorySession::Third),
-            "/Lottery/3DHistoryResult"
-        );
-        assert_eq!(
-            HistoryGame::Lotto3D.api_path_for_session(HistorySession::Fifth),
-            "/Lottery/3DResult"
-        );
-    }
-
-    #[test]
     fn parse_history_draw_page_extracts_both_draw_orders() {
         let sample = serde_json::json!({
             "totalSize": 1,
@@ -1336,9 +1327,9 @@ mod tests {
         assert_eq!(page.total_size, 1);
         assert_eq!(page.items.len(), 1);
         assert_eq!(page.items[0].period, "112000116");
-        assert_eq!(page.items[0].numbers, vec![1, 11, 23, 31, 39, 46, 17]);
+        assert_eq!(page.items[0].numbers_sorted, vec![1, 11, 23, 31, 39, 46, 17]);
         assert_eq!(
-            page.items[0].draw_number_appear,
+            page.items[0].numbers_draw,
             Some(vec![31, 46, 11, 39, 23, 1, 17])
         );
     }
@@ -1348,6 +1339,37 @@ mod tests {
         let query = HistoryDrawQuery::default();
         let err = query.normalized_params().expect_err("must fail without period or month");
         assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn local_3d_history_draw_uses_numbers_draw() {
+        let root = std::env::temp_dir().join(format!(
+            "taiwan-lottery-history-local-3d-test-{}",
+            std::process::id()
+        ));
+        if root.exists() {
+            fs::remove_dir_all(&root).expect("cleanup old temp dir");
+        }
+
+        let game_dir = root.join("D423F").join("2022");
+        fs::create_dir_all(&game_dir).expect("create game dir");
+        let file = game_dir.join("3星彩_2022.csv");
+        fs::write(
+            &file,
+            "遊戲名稱,期別,開獎日期,獎號1,獎號2,獎號3
+3星彩,111000155,2022/06/30,5,9,3
+",
+        )
+        .expect("write csv");
+
+        let query = HistoryDrawQuery::by_period("111000155");
+        let page = query_history_draw(&root, HistoryGame::Lotto3D, query).expect("query local 3d data");
+        assert_eq!(page.total_size, 1);
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].numbers_sorted, Vec::<i32>::new());
+        assert_eq!(page.items[0].numbers_draw, Some(vec![5, 9, 3]));
+
+        fs::remove_dir_all(&root).expect("cleanup temp dir");
     }
 
     #[test]
@@ -1373,8 +1395,8 @@ mod tests {
         let page = query_history_draw(&root, HistoryGame::Lotto649, query).expect("query local data");
         assert_eq!(page.total_size, 1);
         assert_eq!(page.items.len(), 1);
-        assert_eq!(page.items[0].draw_number_appear, None);
-        assert_eq!(page.items[0].numbers, vec![3, 7, 16, 19, 40, 42, 12]);
+        assert_eq!(page.items[0].numbers_draw, None);
+        assert_eq!(page.items[0].numbers_sorted, vec![3, 7, 16, 19, 40, 42, 12]);
 
         fs::remove_dir_all(&root).expect("cleanup temp dir");
     }

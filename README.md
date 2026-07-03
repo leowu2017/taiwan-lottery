@@ -75,12 +75,12 @@ Example output layout:
 
 - `query_history_draw(output_dir, game, query)`:
 	Reads history draw data from files that were downloaded by `download_history_draw` (under `output_dir/D423F/`).
-	This source only guarantees sorted draw numbers (`numbers`).
-	`draw_number_appear` is returned as `null` to avoid misleading interpretation.
+	This source only guarantees sorted draw numbers (`numbers_sorted`).
+	`numbers_draw` is returned as `null` to avoid misleading interpretation.
 - `query_history_draw_from_taiwan_lottery(game, query)`:
 	Calls Taiwan Lottery website API directly. This source can provide both:
-	1) draw order (`draw_number_appear`),
-	2) sorted order (`numbers`).
+	1) draw order (`numbers_draw`),
+	2) sorted order (`numbers_sorted`).
 
 - `download_all(output_dir)`:
 	Downloads API docs and all datasets listed in the docs.
@@ -100,8 +100,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let page = query_history_draw("data", HistoryGame::Lotto649, query)?;
 	for item in page.items {
 		println!("period={}", item.period);
-		println!("draw_number_appear={:?}", item.draw_number_appear); // local source is None
-		println!("numbers={:?}", item.numbers);
+		println!("numbers_draw={:?}", item.numbers_draw); // local source is None
+		println!("numbers_sorted={:?}", item.numbers_sorted);
 	}
 
 	Ok(())
