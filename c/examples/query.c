@@ -5,10 +5,13 @@
 
 static void print_usage(const char *program) {
     fprintf(stderr, "Usage:\n");
-    fprintf(stderr, "  %s local <game> period <PERIOD> [output_dir] [session]\n", program);
-    fprintf(stderr, "  %s local <game> month <YYYY-MM> [output_dir] [session]\n", program);
-    fprintf(stderr, "  %s remote <game> period <PERIOD> [session]\n", program);
-    fprintf(stderr, "  %s remote <game> month <YYYY-MM> [session]\n", program);
+    fprintf(stderr, "  %s local <game> period <PERIOD> [output_dir]\n", program);
+    fprintf(stderr, "  %s local <game> month <YYYY-MM> [output_dir]\n", program);
+    fprintf(stderr, "  %s local <game> month-range <YYYY-MM> <YYYY-MM> [output_dir]\n", program);
+    fprintf(stderr, "  %s remote <game> period <PERIOD>\n", program);
+    fprintf(stderr, "  %s remote <game> month <YYYY-MM>\n", program);
+    fprintf(stderr, "  %s remote <game> month-range <YYYY-MM> <YYYY-MM>\n", program);
+    fprintf(stderr, "  game: super-lotto638 | lotto649 | daily539 | 3d | 4d | 49m6 | 39m5 | 38m6 | 1224 | 740 | tic-tac-toe | 638\n");
 }
 
 static int parse_game(const char *value) {
@@ -52,18 +55,6 @@ static int parse_game(const char *value) {
     return -1;
 }
 
-static int parse_session(const char *value) {
-    if (value == NULL) {
-        return TAIWAN_LOTTERY_HISTORY_SESSION_FIFTH;
-    }
-    if (strcmp(value, "third") == 0) {
-        return TAIWAN_LOTTERY_HISTORY_SESSION_THIRD;
-    }
-    if (strcmp(value, "fourth") == 0) {
-        return TAIWAN_LOTTERY_HISTORY_SESSION_FOURTH;
-    }
-    return TAIWAN_LOTTERY_HISTORY_SESSION_FIFTH;
-}
 
 static void print_numbers(const int32_t *values, size_t len) {
     size_t i;
@@ -89,8 +80,8 @@ int main(int argc, char **argv) {
     const char *source = argv[1];
     int game = parse_game(argv[2]);
     const char *query_mode = argv[3];
-    const char *query_value = argv[4];
-    int session;
+    int is_month_range = strcmp(query_mode, "month-range") == 0;
+    int value_count = is_month_range ? 2 : 1;
     int status;
     taiwan_lottery_history_draw_page *page = NULL;
 
@@ -100,29 +91,36 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    if (strcmp(query_mode, "period") != 0 && strcmp(query_mode, "month") != 0) {
-        fprintf(stderr, "Query mode must be period or month\n");
+    if (strcmp(query_mode, "period") != 0 && strcmp(query_mode, "month") != 0 && !is_month_range) {
+        fprintf(stderr, "Query mode must be period, month, or month-range\n");
         print_usage(program);
         return 2;
     }
 
     if (strcmp(source, "local") == 0) {
-        const char *output_dir = argc > 5 ? argv[5] : default_output_dir;
-        const char *session_text = argc > 6 ? argv[6] : NULL;
-        const char *period = strcmp(query_mode, "period") == 0 ? query_value : NULL;
-        const char *month = strcmp(query_mode, "month") == 0 ? query_value : NULL;
-        const char *end_month = month;
+        if (argc < 4 + value_count + 1) {
+            fprintf(stderr, "Missing query value(s) for mode: %s\n", query_mode);
+            print_usage(program);
+            return 2;
+        }
+        const char *output_dir = argc > 4 + value_count ? argv[4 + value_count] : default_output_dir;
+        const char *period = strcmp(query_mode, "period") == 0 ? argv[4] : NULL;
+        const char *month = !period ? argv[4] : NULL;
+        const char *end_month = is_month_range ? argv[5] : month;
 
-        session = parse_session(session_text);
-        status = query_history_draw(output_dir, game, period, month, end_month, session, &page);
+        status = query_history_draw(output_dir, game, period, month, end_month, &page);
     } else if (strcmp(source, "remote") == 0) {
-        const char *session_text = argc > 5 ? argv[5] : NULL;
-        const char *period = strcmp(query_mode, "period") == 0 ? query_value : NULL;
-        const char *month = strcmp(query_mode, "month") == 0 ? query_value : NULL;
-        const char *end_month = month;
+        if (argc < 4 + value_count) {
+            fprintf(stderr, "Missing query value(s) for mode: %s\n", query_mode);
+            print_usage(program);
+            return 2;
+        }
 
-        session = parse_session(session_text);
-        status = query_history_draw_from_taiwan_lottery(game, period, month, end_month, session, &page);
+        const char *period = strcmp(query_mode, "period") == 0 ? argv[4] : NULL;
+        const char *month = !period ? argv[4] : NULL;
+        const char *end_month = is_month_range ? argv[5] : month;
+
+        status = query_history_draw_from_taiwan_lottery(game, period, month, end_month, &page);
     } else {
         print_usage(program);
         return 2;
@@ -137,18 +135,18 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < page->item_count; ++i) {
         const taiwan_lottery_history_draw_item *item = &page->items[i];
         printf("period=%s\n", item->period != NULL ? item->period : "");
-        printf("lottery_date=%s\n", item->lottery_date != NULL ? item->lottery_date : "");
+        printf("date=%s\n", item->date != NULL ? item->date : "");
 
-        if (item->has_draw_number_appear) {
-            printf("draw_number_appear=");
-            print_numbers(item->draw_number_appear, item->draw_number_appear_len);
+        if (item->numbers_draw != NULL && item->numbers_draw_len > 0) {
+            printf("numbers_draw=");
+            print_numbers(item->numbers_draw, item->numbers_draw_len);
             printf("\n");
         } else {
-            printf("draw_number_appear=<not available in local data>\n");
+            printf("numbers_draw=<not available in local data>\n");
         }
 
-        printf("numbers=");
-        print_numbers(item->numbers, item->numbers_len);
+        printf("numbers_sorted=");
+        print_numbers(item->numbers_sorted, item->numbers_sorted_len);
         printf("\n\n");
     }
 

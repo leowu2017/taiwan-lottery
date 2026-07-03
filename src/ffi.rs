@@ -5,7 +5,7 @@ use crate::{
     download_all, download_api_doc, download_dataset, download_history_draw,
     download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
     query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError,
-    HistoryDrawQuery, HistoryGame, HistorySession,
+    HistoryDrawQuery, HistoryGame,
 };
 
 #[repr(i32)]
@@ -19,21 +19,19 @@ enum DownloadStatus {
     NullDatasetCode = 6,
     InvalidDatasetCodeUtf8 = 7,
     InvalidGame = 8,
-    InvalidSession = 9,
-    InvalidQueryUtf8 = 10,
-    NullResultPointer = 11,
+    InvalidQueryUtf8 = 9,
+    NullResultPointer = 10,
 }
 
 #[repr(C)]
 pub struct HistoryDrawItemC {
     period: *mut c_char,
-    lottery_date: *mut c_char,
+    date: *mut c_char,
     redeemable_date: *mut c_char,
-    numbers: *mut i32,
-    numbers_len: usize,
-    draw_number_appear: *mut i32,
-    draw_number_appear_len: usize,
-    has_draw_number_appear: u8,
+    numbers_sorted: *mut i32,
+    numbers_sorted_len: usize,
+    numbers_draw: *mut i32,
+    numbers_draw_len: usize,
 }
 
 #[repr(C)]
@@ -143,7 +141,6 @@ pub extern "C" fn query_history_draw_ffi(
     period: *const c_char,
     month: *const c_char,
     end_month: *const c_char,
-    session: i32,
     out_page: *mut *mut HistoryDrawPageC,
 ) -> i32 {
     let out_dir = match c_str_arg_to_string(
@@ -159,11 +156,7 @@ pub extern "C" fn query_history_draw_ffi(
         Ok(value) => value,
         Err(status) => return status,
     };
-    let session = match int_to_history_session(session) {
-        Ok(value) => value,
-        Err(status) => return status,
-    };
-    let query = match build_history_draw_query(period, month, end_month, session) {
+    let query = match build_history_draw_query(period, month, end_month) {
         Ok(value) => value,
         Err(status) => return status,
     };
@@ -178,18 +171,13 @@ pub extern "C" fn query_history_draw_from_taiwan_lottery_ffi(
     period: *const c_char,
     month: *const c_char,
     end_month: *const c_char,
-    session: i32,
     out_page: *mut *mut HistoryDrawPageC,
 ) -> i32 {
     let game = match int_to_history_game(game) {
         Ok(value) => value,
         Err(status) => return status,
     };
-    let session = match int_to_history_session(session) {
-        Ok(value) => value,
-        Err(status) => return status,
-    };
-    let query = match build_history_draw_query(period, month, end_month, session) {
+    let query = match build_history_draw_query(period, month, end_month) {
         Ok(value) => value,
         Err(status) => return status,
     };
@@ -270,20 +258,10 @@ fn int_to_history_game(value: i32) -> Result<HistoryGame, i32> {
     }
 }
 
-fn int_to_history_session(value: i32) -> Result<HistorySession, i32> {
-    match value {
-        0 => Ok(HistorySession::Third),
-        1 => Ok(HistorySession::Fourth),
-        2 => Ok(HistorySession::Fifth),
-        _ => Err(DownloadStatus::InvalidSession as i32),
-    }
-}
-
 fn build_history_draw_query(
     period: *const c_char,
     month: *const c_char,
     end_month: *const c_char,
-    session: HistorySession,
 ) -> Result<HistoryDrawQuery, i32> {
     let period = optional_c_str_arg_to_string(period, DownloadStatus::InvalidQueryUtf8 as i32)?;
     let month = optional_c_str_arg_to_string(month, DownloadStatus::InvalidQueryUtf8 as i32)?;
@@ -293,7 +271,6 @@ fn build_history_draw_query(
         period,
         month,
         end_month,
-        session,
     })
 }
 
@@ -337,35 +314,34 @@ fn history_page_to_c(page: crate::HistoryDrawPage) -> Box<HistoryDrawPageC> {
 }
 
 fn history_item_to_c(item: crate::HistoryDrawItem) -> HistoryDrawItemC {
-    let numbers_len = item.numbers.len();
-    let numbers_ptr = if numbers_len == 0 {
+    let numbers_sorted_len = item.numbers_sorted.len();
+    let numbers_sorted_ptr = if numbers_sorted_len == 0 {
         std::ptr::null_mut()
     } else {
-        Box::into_raw(item.numbers.into_boxed_slice()) as *mut i32
+        Box::into_raw(item.numbers_sorted.into_boxed_slice()) as *mut i32
     };
 
-    let (draw_number_appear_ptr, draw_number_appear_len, has_draw_number_appear) =
-        if let Some(numbers) = item.draw_number_appear {
-            if numbers.is_empty() {
-                (std::ptr::null_mut(), 0, 1)
+    let (numbers_draw_ptr, numbers_draw_len) =
+        if let Some(numbers_draw) = item.numbers_draw {
+            if numbers_draw.is_empty() {
+                (std::ptr::null_mut(), 0)
             } else {
-                let len = numbers.len();
-                let ptr = Box::into_raw(numbers.into_boxed_slice()) as *mut i32;
-                (ptr, len, 1)
+                let len = numbers_draw.len();
+                let ptr = Box::into_raw(numbers_draw.into_boxed_slice()) as *mut i32;
+                (ptr, len)
             }
         } else {
-            (std::ptr::null_mut(), 0, 0)
+            (std::ptr::null_mut(), 0)
         };
 
     HistoryDrawItemC {
         period: string_to_c_ptr(item.period),
-        lottery_date: optional_string_to_c_ptr(item.lottery_date),
+        date: optional_string_to_c_ptr(item.date),
         redeemable_date: optional_string_to_c_ptr(item.redeemable_date),
-        numbers: numbers_ptr,
-        numbers_len,
-        draw_number_appear: draw_number_appear_ptr,
-        draw_number_appear_len,
-        has_draw_number_appear,
+        numbers_sorted: numbers_sorted_ptr,
+        numbers_sorted_len,
+        numbers_draw: numbers_draw_ptr,
+        numbers_draw_len,
     }
 }
 
@@ -374,31 +350,31 @@ fn free_history_draw_item(item: &HistoryDrawItemC) {
         // SAFETY: pointer was created by CString::into_raw in this crate.
         let _ = unsafe { CString::from_raw(item.period) };
     }
-    if !item.lottery_date.is_null() {
+    if !item.date.is_null() {
         // SAFETY: pointer was created by CString::into_raw in this crate.
-        let _ = unsafe { CString::from_raw(item.lottery_date) };
+        let _ = unsafe { CString::from_raw(item.date) };
     }
     if !item.redeemable_date.is_null() {
         // SAFETY: pointer was created by CString::into_raw in this crate.
         let _ = unsafe { CString::from_raw(item.redeemable_date) };
     }
 
-    if !item.numbers.is_null() {
+    if !item.numbers_sorted.is_null() {
         // SAFETY: pointer/len pair was created from Box<[i32]> in this crate.
         let _ = unsafe {
             Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                item.numbers,
-                item.numbers_len,
+                item.numbers_sorted,
+                item.numbers_sorted_len,
             ))
         };
     }
 
-    if !item.draw_number_appear.is_null() {
+    if !item.numbers_draw.is_null() {
         // SAFETY: pointer/len pair was created from Box<[i32]> in this crate.
         let _ = unsafe {
             Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                item.draw_number_appear,
-                item.draw_number_appear_len,
+                item.numbers_draw,
+                item.numbers_draw_len,
             ))
         };
     }

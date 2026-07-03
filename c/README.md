@@ -26,6 +26,11 @@ Prefer split headers by concern:
 Both query functions return a `taiwan_lottery_history_draw_page*` via output pointer.
 The caller owns this memory and must call `free_history_draw_page(...)` when done.
 
+Each `taiwan_lottery_history_draw_item` exposes:
+
+- `numbers_sorted`: numbers in sorted order
+- `numbers_draw`: numbers in draw order when available from the remote API
+
 ## Build
 
 1. Build the Rust library:
