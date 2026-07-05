@@ -1,3 +1,5 @@
+use std::fmt;
+
 /// Error types that can occur during download, parsing, or API operations.
 ///
 /// This enum wraps errors from various operations including file I/O, HTTP requests,
@@ -9,6 +11,30 @@ pub enum DownloadError {
     Json(serde_json::Error),
     Csv(csv::Error),
     Zip(zip::result::ZipError),
+}
+
+impl fmt::Display for DownloadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(err) => write!(f, "I/O error: {err}"),
+            Self::Http(err) => write!(f, "HTTP error: {err}"),
+            Self::Json(err) => write!(f, "JSON parse error: {err}"),
+            Self::Csv(err) => write!(f, "CSV parse error: {err}"),
+            Self::Zip(err) => write!(f, "ZIP error: {err}"),
+        }
+    }
+}
+
+impl std::error::Error for DownloadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(err) => Some(err),
+            Self::Http(err) => Some(err),
+            Self::Json(err) => Some(err),
+            Self::Csv(err) => Some(err),
+            Self::Zip(err) => Some(err),
+        }
+    }
 }
 
 impl From<std::io::Error> for DownloadError {
@@ -38,5 +64,24 @@ impl From<csv::Error> for DownloadError {
 impl From<zip::result::ZipError> for DownloadError {
     fn from(err: zip::result::ZipError) -> Self {
         Self::Zip(err)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::error::Error as _;
+
+    #[test]
+    fn display_formats_io_error() {
+        let err = DownloadError::Io(std::io::Error::other("disk full"));
+        assert_eq!(err.to_string(), "I/O error: disk full");
+    }
+
+    #[test]
+    fn source_returns_wrapped_error() {
+        let err = DownloadError::Io(std::io::Error::other("disk full"));
+        let source = err.source().expect("wrapped error source");
+        assert_eq!(source.to_string(), "disk full");
     }
 }

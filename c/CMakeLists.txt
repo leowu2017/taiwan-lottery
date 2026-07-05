@@ -33,10 +33,12 @@ target_link_libraries(download PRIVATE "${TAIWAN_LOTTERY_LIB}" ${TAIWAN_LOTTERY_
 
 add_executable(query examples/query.c)
 target_include_directories(query PRIVATE "${TAIWAN_LOTTERY_INCLUDE_DIR}")
+target_sources(query PRIVATE src/game_args.c)
 target_link_libraries(query PRIVATE "${TAIWAN_LOTTERY_LIB}" ${TAIWAN_LOTTERY_SYSTEM_LIBS})
 
 add_executable(draw examples/draw.c)
 target_include_directories(draw PRIVATE "${TAIWAN_LOTTERY_INCLUDE_DIR}")
+target_sources(draw PRIVATE src/game_args.c)
 target_link_libraries(draw PRIVATE "${TAIWAN_LOTTERY_LIB}" ${TAIWAN_LOTTERY_SYSTEM_LIBS})
 
 add_executable(numbers_test tests/numbers_test.c)
@@ -54,3 +56,9 @@ target_link_libraries(query_test PRIVATE "${TAIWAN_LOTTERY_LIB}" ${TAIWAN_LOTTER
 add_test(NAME numbers_test COMMAND numbers_test)
 add_test(NAME draw_test COMMAND draw_test)
 add_test(NAME query_test COMMAND query_test)
+
+if(WIN32)
+    set(TAIWAN_LOTTERY_TEST_PATH "PATH=${TAIWAN_LOTTERY_LIB_DIR};$ENV{PATH}")
+    set_tests_properties(draw_test PROPERTIES ENVIRONMENT "${TAIWAN_LOTTERY_TEST_PATH}")
+    set_tests_properties(query_test PROPERTIES ENVIRONMENT "${TAIWAN_LOTTERY_TEST_PATH}")
+endif()

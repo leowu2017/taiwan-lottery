@@ -4,7 +4,7 @@ This directory contains C-facing usage assets for the Rust library:
 
 - `examples/download.c`: C example CLI matching Rust download modes.
 - `examples/draw.c`: C example CLI for random draws by game.
-- `src/`: reserved for future C wrapper/helper code.
+- `src/`: shared C helper code used by examples and tests.
 - `CMakeLists.txt`: build script for C examples.
 
 ## Query APIs (C)

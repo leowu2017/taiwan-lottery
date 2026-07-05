@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{DownloadError, HistoryDrawPage, HistoryDrawQuery, HistoryGame};
+use crate::{DownloadError, HistoryDrawPage, HistoryDrawQuery, LotteryGame};
 
 /// Query historical lottery draw results from locally downloaded data.
 ///
@@ -20,17 +20,17 @@ use crate::{DownloadError, HistoryDrawPage, HistoryDrawQuery, HistoryGame};
 ///
 /// # Example
 /// ```ignore
-/// use taiwan_lottery::{query_history_draw, HistoryDrawQuery, HistoryGame};
+/// use taiwan_lottery::{query_history_draw, HistoryDrawQuery, LotteryGame};
 ///
 /// let query = HistoryDrawQuery::by_month("2023-12");
-/// let results = query_history_draw("./data", HistoryGame::Lotto649, query)?;
+/// let results = query_history_draw("./data", LotteryGame::Lotto649, query)?;
 /// for item in results.items {
 ///     println!("Period {}: {:?}", item.period, item.numbers.base.numbers);
 /// }
 /// ```
 pub fn query_history_draw(
     output_dir: impl AsRef<Path>,
-    game: HistoryGame,
+    game: LotteryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
     crate::query_history_draw_impl(output_dir, game, query)
@@ -53,13 +53,13 @@ pub fn query_history_draw(
 ///
 /// # Example
 /// ```ignore
-/// use taiwan_lottery::{query_history_draw_from_taiwan_lottery, HistoryDrawQuery, HistoryGame};
+/// use taiwan_lottery::{query_history_draw_from_taiwan_lottery, HistoryDrawQuery, LotteryGame};
 ///
 /// let query = HistoryDrawQuery::by_month("2026-01");
-/// let results = query_history_draw_from_taiwan_lottery(HistoryGame::Lotto649, query)?;
+/// let results = query_history_draw_from_taiwan_lottery(LotteryGame::Lotto649, query)?;
 /// ```
 pub fn query_history_draw_from_taiwan_lottery(
-    game: HistoryGame,
+    game: LotteryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
     crate::query_history_draw_from_taiwan_lottery_impl(game, query)

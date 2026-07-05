@@ -24,18 +24,18 @@
 //! ## Query results
 //!
 //! ```ignore
-//! use taiwan_lottery::{query_history_draw, HistoryDrawQuery, HistoryGame};
+//! use taiwan_lottery::{query_history_draw, HistoryDrawQuery, LotteryGame};
 //!
 //! let query = HistoryDrawQuery::by_month("2023-12");
-//! let results = query_history_draw("./data", HistoryGame::Lotto649, query)?;
+//! let results = query_history_draw("./data", LotteryGame::Lotto649, query)?;
 //! ```
 //!
 //! ## Generate random draw
 //!
 //! ```ignore
-//! use taiwan_lottery::{draw_by_game, HistoryGame};
+//! use taiwan_lottery::{draw_by_game, LotteryGame};
 //!
-//! let result = draw_by_game(HistoryGame::Lotto649);
+//! let result = draw_by_game(LotteryGame::Lotto649);
 //! ```
 
 use std::collections::HashMap;
@@ -81,7 +81,7 @@ const TAIWAN_LOTTERY_FALLBACK_MAX_YEAR: i32 = 2200;
 /// Each variant represents a different Taiwan lottery game. Use this with
 /// [`query_history_draw`], [`query_history_draw_from_taiwan_lottery`], or [`draw_by_game`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HistoryGame {
+pub enum LotteryGame {
     SuperLotto638,
     Lotto649,
     Daily539,
@@ -96,7 +96,307 @@ pub enum HistoryGame {
     Lotto638,
 }
 
-impl HistoryGame {
+/// One number selection segment for a lottery game.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LotteryGameNumberRule {
+    pub name: &'static str,
+    pub picks: usize,
+    pub min: i32,
+    pub max: i32,
+    pub allow_repeat: bool,
+}
+
+/// Static metadata for rendering lottery game information in UI layers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LotteryGameMetadata {
+    pub display_name: &'static str,
+    pub number_rule: &'static str,
+    pub number_ranges: &'static [LotteryGameNumberRule],
+}
+
+#[deprecated(note = "use LotteryGame instead")]
+pub type HistoryGame = LotteryGame;
+
+#[deprecated(note = "use LotteryGameNumberRule instead")]
+pub type HistoryGameNumberRule = LotteryGameNumberRule;
+
+#[deprecated(note = "use LotteryGameMetadata instead")]
+pub type HistoryGameMetadata = LotteryGameMetadata;
+
+const SUPER_LOTTO_638_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
+    LotteryGameNumberRule {
+        name: "main",
+        picks: 6,
+        min: 1,
+        max: 49,
+        allow_repeat: false,
+    },
+    LotteryGameNumberRule {
+        name: "bonus",
+        picks: 1,
+        min: 1,
+        max: 8,
+        allow_repeat: false,
+    },
+];
+
+const LOTTO_649_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
+    LotteryGameNumberRule {
+        name: "main",
+        picks: 6,
+        min: 1,
+        max: 49,
+        allow_repeat: false,
+    },
+    LotteryGameNumberRule {
+        name: "bonus",
+        picks: 1,
+        min: 1,
+        max: 49,
+        allow_repeat: false,
+    },
+];
+
+const DAILY_539_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
+    LotteryGameNumberRule {
+        name: "main",
+        picks: 5,
+        min: 1,
+        max: 39,
+        allow_repeat: false,
+    },
+    LotteryGameNumberRule {
+        name: "bonus",
+        picks: 1,
+        min: 1,
+        max: 39,
+        allow_repeat: false,
+    },
+];
+
+const LOTTO_3D_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
+    name: "digits",
+    picks: 3,
+    min: 0,
+    max: 9,
+    allow_repeat: true,
+}];
+
+const LOTTO_4D_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
+    name: "digits",
+    picks: 4,
+    min: 0,
+    max: 9,
+    allow_repeat: true,
+}];
+
+const LOTTO_49M6_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
+    name: "main",
+    picks: 6,
+    min: 1,
+    max: 49,
+    allow_repeat: false,
+}];
+
+const LOTTO_39M5_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
+    name: "main",
+    picks: 5,
+    min: 1,
+    max: 39,
+    allow_repeat: false,
+}];
+
+const LOTTO_38M6_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
+    name: "main",
+    picks: 6,
+    min: 1,
+    max: 38,
+    allow_repeat: false,
+}];
+
+const LOTTO_1224_NUMBER_RULES: [LotteryGameNumberRule; 3] = [
+    LotteryGameNumberRule {
+        name: "zone_1",
+        picks: 2,
+        min: 1,
+        max: 18,
+        allow_repeat: false,
+    },
+    LotteryGameNumberRule {
+        name: "zone_2",
+        picks: 2,
+        min: 19,
+        max: 27,
+        allow_repeat: false,
+    },
+    LotteryGameNumberRule {
+        name: "zone_3",
+        picks: 2,
+        min: 28,
+        max: 36,
+        allow_repeat: false,
+    },
+];
+
+const LOTTO_740_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
+    LotteryGameNumberRule {
+        name: "main",
+        picks: 7,
+        min: 1,
+        max: 38,
+        allow_repeat: false,
+    },
+    LotteryGameNumberRule {
+        name: "bonus",
+        picks: 1,
+        min: 1,
+        max: 8,
+        allow_repeat: false,
+    },
+];
+
+const TIC_TAC_TOE_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
+    name: "main",
+    picks: 20,
+    min: 1,
+    max: 80,
+    allow_repeat: false,
+}];
+
+const LOTTO_638_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
+    LotteryGameNumberRule {
+        name: "main",
+        picks: 6,
+        min: 1,
+        max: 49,
+        allow_repeat: false,
+    },
+    LotteryGameNumberRule {
+        name: "bonus",
+        picks: 1,
+        min: 1,
+        max: 10,
+        allow_repeat: false,
+    },
+];
+
+impl LotteryGame {
+    pub const ALL: [Self; 12] = [
+        Self::SuperLotto638,
+        Self::Lotto649,
+        Self::Daily539,
+        Self::Lotto3D,
+        Self::Lotto4D,
+        Self::Lotto49M6,
+        Self::Lotto39M5,
+        Self::Lotto38M6,
+        Self::Lotto1224,
+        Self::Lotto740,
+        Self::TicTacToe,
+        Self::Lotto638,
+    ];
+
+    pub const fn metadata(self) -> LotteryGameMetadata {
+        match self {
+            Self::SuperLotto638 => LotteryGameMetadata {
+                display_name: "威力彩",
+                number_rule: "6 numbers from 1-49, plus 1 bonus number from 1-8",
+                number_ranges: &SUPER_LOTTO_638_NUMBER_RULES,
+            },
+            Self::Lotto649 => LotteryGameMetadata {
+                display_name: "大樂透",
+                number_rule: "6 numbers from 1-49, plus 1 bonus number from 1-49",
+                number_ranges: &LOTTO_649_NUMBER_RULES,
+            },
+            Self::Daily539 => LotteryGameMetadata {
+                display_name: "今彩539",
+                number_rule: "5 numbers from 1-39, plus 1 bonus number from 1-39",
+                number_ranges: &DAILY_539_NUMBER_RULES,
+            },
+            Self::Lotto3D => LotteryGameMetadata {
+                display_name: "3星彩",
+                number_rule: "3 digits from 0-9, digits may repeat",
+                number_ranges: &LOTTO_3D_NUMBER_RULES,
+            },
+            Self::Lotto4D => LotteryGameMetadata {
+                display_name: "4星彩",
+                number_rule: "4 digits from 0-9, digits may repeat",
+                number_ranges: &LOTTO_4D_NUMBER_RULES,
+            },
+            Self::Lotto49M6 => LotteryGameMetadata {
+                display_name: "49樂合彩",
+                number_rule: "6 numbers from 1-49",
+                number_ranges: &LOTTO_49M6_NUMBER_RULES,
+            },
+            Self::Lotto39M5 => LotteryGameMetadata {
+                display_name: "39樂合彩",
+                number_rule: "5 numbers from 1-39",
+                number_ranges: &LOTTO_39M5_NUMBER_RULES,
+            },
+            Self::Lotto38M6 => LotteryGameMetadata {
+                display_name: "38樂合彩",
+                number_rule: "6 numbers from 1-38",
+                number_ranges: &LOTTO_38M6_NUMBER_RULES,
+            },
+            Self::Lotto1224 => LotteryGameMetadata {
+                display_name: "BINGO BINGO 賓果賓果 12/24選6",
+                number_rule: "2 numbers from 1-18, 2 numbers from 19-27, and 2 numbers from 28-36",
+                number_ranges: &LOTTO_1224_NUMBER_RULES,
+            },
+            Self::Lotto740 => LotteryGameMetadata {
+                display_name: "BINGO BINGO 賓果賓果 7/40",
+                number_rule: "7 numbers from 1-38, plus 1 bonus number from 1-8",
+                number_ranges: &LOTTO_740_NUMBER_RULES,
+            },
+            Self::TicTacToe => LotteryGameMetadata {
+                display_name: "BINGO BINGO 賓果賓果 猜大小單雙",
+                number_rule: "20 numbers from 1-80",
+                number_ranges: &TIC_TAC_TOE_NUMBER_RULES,
+            },
+            Self::Lotto638 => LotteryGameMetadata {
+                display_name: "BINGO BINGO 賓果賓果 6/38",
+                number_rule: "6 numbers from 1-49, plus 1 bonus number from 1-10",
+                number_ranges: &LOTTO_638_NUMBER_RULES,
+            },
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "super-lotto638" | "superlotto638" | "5134" => Some(Self::SuperLotto638),
+            "lotto649" | "5118" => Some(Self::Lotto649),
+            "daily539" | "5120" => Some(Self::Daily539),
+            "3d" | "2108" => Some(Self::Lotto3D),
+            "4d" | "2109" => Some(Self::Lotto4D),
+            "49m6" | "1121" => Some(Self::Lotto49M6),
+            "39m5" | "1197" => Some(Self::Lotto39M5),
+            "38m6" | "5122" => Some(Self::Lotto38M6),
+            "1224" | "5290" => Some(Self::Lotto1224),
+            "740" | "2300" => Some(Self::Lotto740),
+            "tic-tac-toe" | "tictactoe" | "2400" => Some(Self::TicTacToe),
+            "638" | "2500" => Some(Self::Lotto638),
+            _ => None,
+        }
+    }
+
+    pub const fn from_code(code: i32) -> Option<Self> {
+        match code {
+            0 => Some(Self::SuperLotto638),
+            1 => Some(Self::Lotto649),
+            2 => Some(Self::Daily539),
+            3 => Some(Self::Lotto3D),
+            4 => Some(Self::Lotto4D),
+            5 => Some(Self::Lotto49M6),
+            6 => Some(Self::Lotto39M5),
+            7 => Some(Self::Lotto38M6),
+            8 => Some(Self::Lotto1224),
+            9 => Some(Self::Lotto740),
+            10 => Some(Self::TicTacToe),
+            11 => Some(Self::Lotto638),
+            _ => None,
+        }
+    }
+
     fn path(self) -> &'static str {
         match self {
             Self::SuperLotto638 => "/Lottery/SuperLotto638Result",
@@ -120,6 +420,22 @@ impl HistoryGame {
             Self::Lotto4D => Some("/Lottery/4DHistoryResult"),
             _ => None,
         }
+    }
+}
+
+impl std::str::FromStr for LotteryGame {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s).ok_or(())
+    }
+}
+
+impl TryFrom<i32> for LotteryGame {
+    type Error = ();
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        Self::from_code(value).ok_or(())
     }
 }
 
@@ -795,7 +1111,7 @@ fn fetch_all_pages_from_url(
 
 fn query_history_draw_with_client(
     client: &reqwest::blocking::Client,
-    game: HistoryGame,
+    game: LotteryGame,
     query: &HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
     let (period, month, end_month) = query.normalized_params()?;
@@ -823,20 +1139,20 @@ fn query_history_draw_with_client(
     })
 }
 
-fn history_game_file_prefixes(game: HistoryGame) -> &'static [&'static str] {
+fn history_game_file_prefixes(game: LotteryGame) -> &'static [&'static str] {
     match game {
-        HistoryGame::SuperLotto638 => &["威力彩_"],
-        HistoryGame::Lotto649 => &["大樂透_"],
-        HistoryGame::Daily539 => &["今彩539_"],
-        HistoryGame::Lotto3D => &["3星彩_", "三星彩_"],
-        HistoryGame::Lotto4D => &["4星彩_", "四星彩_"],
-        HistoryGame::Lotto49M6 => &["49樂合彩_"],
-        HistoryGame::Lotto39M5 => &["39樂合彩_"],
-        HistoryGame::Lotto38M6 => &["38樂合彩_", "大樂透加開獎項_"],
-        HistoryGame::Lotto1224 => &["BINGOBINGO賓果賓果_", "賓果賓果_"],
-        HistoryGame::Lotto740 => &["大福彩_", "Lotto740_"],
-        HistoryGame::TicTacToe => &["tictactoe_", "賓果賓果_"],
-        HistoryGame::Lotto638 => &["賓果賓果_", "BINGOBINGO賓果賓果_"],
+        LotteryGame::SuperLotto638 => &["威力彩_"],
+        LotteryGame::Lotto649 => &["大樂透_"],
+        LotteryGame::Daily539 => &["今彩539_"],
+        LotteryGame::Lotto3D => &["3星彩_", "三星彩_"],
+        LotteryGame::Lotto4D => &["4星彩_", "四星彩_"],
+        LotteryGame::Lotto49M6 => &["49樂合彩_"],
+        LotteryGame::Lotto39M5 => &["39樂合彩_"],
+        LotteryGame::Lotto38M6 => &["38樂合彩_", "大樂透加開獎項_"],
+        LotteryGame::Lotto1224 => &["BINGOBINGO賓果賓果_", "賓果賓果_"],
+        LotteryGame::Lotto740 => &["大福彩_", "Lotto740_"],
+        LotteryGame::TicTacToe => &["tictactoe_", "賓果賓果_"],
+        LotteryGame::Lotto638 => &["賓果賓果_", "BINGOBINGO賓果賓果_"],
     }
 }
 
@@ -960,7 +1276,7 @@ fn parse_history_csv_file(file_path: &Path) -> Result<Vec<LocalHistoryDrawRecord
 
 fn query_history_draw_from_downloaded_data(
     output_dir: &Path,
-    game: HistoryGame,
+    game: LotteryGame,
     query: &HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
     let (period, month, _) = query.normalized_params()?;
@@ -1001,7 +1317,7 @@ fn query_history_draw_from_downloaded_data(
         .iter()
         .map(|record| {
             let (base_numbers, sorted_numbers) = match game {
-                HistoryGame::Lotto3D | HistoryGame::Lotto4D => {
+                LotteryGame::Lotto3D | LotteryGame::Lotto4D => {
                     (record.numbers_sorted.clone(), None)
                 }
                 _ => (
@@ -1205,14 +1521,14 @@ pub(crate) fn download_history_draw_impl(
 
 pub(crate) fn query_history_draw_impl(
     output_dir: impl AsRef<Path>,
-    game: HistoryGame,
+    game: LotteryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
     query_history_draw_from_downloaded_data(output_dir.as_ref(), game, &query)
 }
 
 pub(crate) fn query_history_draw_from_taiwan_lottery_impl(
-    game: HistoryGame,
+    game: LotteryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
     let client = build_http_client()?;
@@ -1436,6 +1752,60 @@ mod tests {
     }
 
     #[test]
+    fn history_game_metadata_exposes_ui_fields() {
+        let metadata = LotteryGame::Lotto649.metadata();
+        assert_eq!(metadata.display_name, "大樂透");
+        assert_eq!(
+            metadata.number_rule,
+            "6 numbers from 1-49, plus 1 bonus number from 1-49"
+        );
+        assert_eq!(metadata.number_ranges.len(), 2);
+        assert_eq!(metadata.number_ranges[0].name, "main");
+        assert_eq!(metadata.number_ranges[0].picks, 6);
+        assert_eq!(metadata.number_ranges[0].min, 1);
+        assert_eq!(metadata.number_ranges[0].max, 49);
+        assert!(!metadata.number_ranges[0].allow_repeat);
+    }
+
+    #[test]
+    fn lottery_game_parse_supports_aliases() {
+        assert_eq!(LotteryGame::parse("lotto649"), Some(LotteryGame::Lotto649));
+        assert_eq!(LotteryGame::parse("5118"), Some(LotteryGame::Lotto649));
+        assert_eq!(LotteryGame::parse("tic-tac-toe"), Some(LotteryGame::TicTacToe));
+        assert_eq!(LotteryGame::parse("unknown"), None);
+    }
+
+    #[test]
+    fn lottery_game_from_code_matches_ffi_codes() {
+        assert_eq!(LotteryGame::from_code(0), Some(LotteryGame::SuperLotto638));
+        assert_eq!(LotteryGame::from_code(11), Some(LotteryGame::Lotto638));
+        assert_eq!(LotteryGame::from_code(99), None);
+    }
+
+    #[test]
+    fn lottery_game_from_str_matches_parse() {
+        use std::str::FromStr as _;
+
+        assert_eq!(LotteryGame::from_str("lotto649"), Ok(LotteryGame::Lotto649));
+        assert_eq!(LotteryGame::from_str("5118"), Ok(LotteryGame::Lotto649));
+        assert_eq!(LotteryGame::from_str("invalid"), Err(()));
+    }
+
+    #[test]
+    fn lottery_game_try_from_i32_matches_from_code() {
+        assert_eq!(LotteryGame::try_from(0), Ok(LotteryGame::SuperLotto638));
+        assert_eq!(LotteryGame::try_from(11), Ok(LotteryGame::Lotto638));
+        assert_eq!(LotteryGame::try_from(-1), Err(()));
+    }
+
+    #[test]
+    fn history_game_all_lists_every_supported_game() {
+        assert_eq!(LotteryGame::ALL.len(), 12);
+        assert!(LotteryGame::ALL.contains(&LotteryGame::TicTacToe));
+        assert!(LotteryGame::ALL.contains(&LotteryGame::SuperLotto638));
+    }
+
+    #[test]
     fn local_3d_history_draw_uses_numbers_draw() {
         let root = std::env::temp_dir().join(format!(
             "taiwan-lottery-history-local-3d-test-{}",
@@ -1458,7 +1828,7 @@ mod tests {
 
         let query = HistoryDrawQuery::by_period("111000155");
         let page =
-            query_history_draw(&root, HistoryGame::Lotto3D, query).expect("query local 3d data");
+            query_history_draw(&root, LotteryGame::Lotto3D, query).expect("query local 3d data");
         assert_eq!(page.total_size, 1);
         assert_eq!(page.items.len(), 1);
         assert_eq!(page.items[0].numbers.base.numbers, vec![5, 9, 3]);
@@ -1488,7 +1858,7 @@ mod tests {
 
         let query = HistoryDrawQuery::by_period("115000001");
         let page =
-            query_history_draw(&root, HistoryGame::Lotto649, query).expect("query local data");
+            query_history_draw(&root, LotteryGame::Lotto649, query).expect("query local data");
         assert_eq!(page.total_size, 1);
         assert_eq!(page.items.len(), 1);
         assert_eq!(

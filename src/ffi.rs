@@ -5,7 +5,7 @@ use crate::{
     download_all, download_api_doc, download_dataset, download_history_draw,
     download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
     draw_by_game, query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError,
-    HistoryDrawQuery, HistoryGame,
+    HistoryDrawQuery, LotteryGame,
 };
 
 #[repr(i32)]
@@ -171,7 +171,7 @@ pub extern "C" fn query_history_draw_ffi(
         Err(status) => return status,
     };
 
-    let game = match int_to_history_game(game) {
+    let game = match int_to_lottery_game(game) {
         Ok(value) => value,
         Err(status) => return status,
     };
@@ -192,7 +192,7 @@ pub extern "C" fn query_history_draw_from_taiwan_lottery_ffi(
     end_month: *const c_char,
     out_page: *mut *mut HistoryDrawPageC,
 ) -> i32 {
-    let game = match int_to_history_game(game) {
+    let game = match int_to_lottery_game(game) {
         Ok(value) => value,
         Err(status) => return status,
     };
@@ -207,7 +207,7 @@ pub extern "C" fn query_history_draw_from_taiwan_lottery_ffi(
 
 #[unsafe(export_name = "draw_by_game")]
 pub extern "C" fn draw_by_game_ffi(game: i32, out_result: *mut *mut DrawResultC) -> i32 {
-    let game = match int_to_history_game(game) {
+    let game = match int_to_lottery_game(game) {
         Ok(value) => value,
         Err(status) => return status,
     };
@@ -290,22 +290,8 @@ fn optional_c_str_arg_to_string(ptr: *const c_char, invalid_utf8_status: i32) ->
     }
 }
 
-fn int_to_history_game(value: i32) -> Result<HistoryGame, i32> {
-    match value {
-        0 => Ok(HistoryGame::SuperLotto638),
-        1 => Ok(HistoryGame::Lotto649),
-        2 => Ok(HistoryGame::Daily539),
-        3 => Ok(HistoryGame::Lotto3D),
-        4 => Ok(HistoryGame::Lotto4D),
-        5 => Ok(HistoryGame::Lotto49M6),
-        6 => Ok(HistoryGame::Lotto39M5),
-        7 => Ok(HistoryGame::Lotto38M6),
-        8 => Ok(HistoryGame::Lotto1224),
-        9 => Ok(HistoryGame::Lotto740),
-        10 => Ok(HistoryGame::TicTacToe),
-        11 => Ok(HistoryGame::Lotto638),
-        _ => Err(DownloadStatus::InvalidGame as i32),
-    }
+fn int_to_lottery_game(value: i32) -> Result<LotteryGame, i32> {
+    LotteryGame::from_code(value).ok_or(DownloadStatus::InvalidGame as i32)
 }
 
 fn build_history_draw_query(
