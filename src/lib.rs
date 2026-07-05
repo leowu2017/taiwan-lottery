@@ -971,6 +971,20 @@ fn parse_history_draw_page(content: &serde_json::Value) -> Result<HistoryDrawPag
         .and_then(|value| usize::try_from(value).ok())
         .unwrap_or(0);
 
+    // Some game endpoints legitimately return zero records with an empty `*Res` array.
+    // This should be treated as an empty result page instead of a parse failure.
+    if total_size == 0 {
+        let has_result_array = content_obj.iter().any(|(key, value)| {
+            key.ends_with("Res") && matches!(value, serde_json::Value::Array(_))
+        });
+        if has_result_array {
+            return Ok(HistoryDrawPage {
+                total_size: 0,
+                items: Vec::new(),
+            });
+        }
+    }
+
     let records = content_obj
         .values()
         .find_map(|value| {
@@ -1740,6 +1754,18 @@ mod tests {
             page.items[0].numbers.sorted,
             Some(vec![1, 11, 23, 31, 39, 46, 17])
         );
+    }
+
+    #[test]
+    fn parse_history_draw_page_accepts_empty_result_arrays() {
+        let sample = serde_json::json!({
+            "totalSize": 0,
+            "lotto638Res": []
+        });
+
+        let page = parse_history_draw_page(&sample).expect("parse empty history draw page");
+        assert_eq!(page.total_size, 0);
+        assert!(page.items.is_empty());
     }
 
     #[test]
