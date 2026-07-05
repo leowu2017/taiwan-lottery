@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use taiwan_lottery::{
-    query_history_draw, query_history_draw_from_taiwan_lottery, HistoryDrawQuery, HistoryGame,
+    query_history_draw, query_history_draw_from_taiwan_lottery, HistoryDrawQuery, LotteryGame,
 };
 
 fn print_usage(program: &str) {
@@ -19,22 +19,8 @@ fn default_output_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data")
 }
 
-fn parse_game(value: &str) -> Option<HistoryGame> {
-    match value.to_ascii_lowercase().as_str() {
-        "super-lotto638" | "superlotto638" | "5134" => Some(HistoryGame::SuperLotto638),
-        "lotto649" | "5118" => Some(HistoryGame::Lotto649),
-        "daily539" | "5120" => Some(HistoryGame::Daily539),
-        "3d" | "2108" => Some(HistoryGame::Lotto3D),
-        "4d" | "2109" => Some(HistoryGame::Lotto4D),
-        "49m6" | "1121" => Some(HistoryGame::Lotto49M6),
-        "39m5" | "1197" => Some(HistoryGame::Lotto39M5),
-        "38m6" | "5122" => Some(HistoryGame::Lotto38M6),
-        "1224" | "5290" => Some(HistoryGame::Lotto1224),
-        "740" | "2300" => Some(HistoryGame::Lotto740),
-        "tic-tac-toe" | "tictactoe" | "2400" => Some(HistoryGame::TicTacToe),
-        "638" | "2500" => Some(HistoryGame::Lotto638),
-        _ => None,
-    }
+fn parse_game(value: &str) -> Option<LotteryGame> {
+    LotteryGame::parse(value)
 }
 
 
