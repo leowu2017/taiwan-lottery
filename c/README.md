@@ -19,7 +19,9 @@ It exposes:
 - `free_draw_result(...)`: release memory allocated by the draw API.
 - `query_history_draw(...)`: query from downloaded local history files (`output_dir/D423F`).
 - `query_history_draw_from_taiwan_lottery(...)`: query directly from Taiwan Lottery web API.
+- `lottery_game_query_month_range(...)`: get game-specific query month bounds (`min_month`, `max_month`) in `YYYY-MM`.
 - `free_history_draw_page(...)`: release memory allocated by the two query APIs.
+- `free_lottery_game_query_month_range(...)`: release memory allocated by `lottery_game_query_month_range(...)`.
 
 Prefer split headers by concern:
 
