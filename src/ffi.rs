@@ -58,6 +58,12 @@ pub struct HistoryDrawPageC {
     items: *mut HistoryDrawItemC,
 }
 
+#[repr(C)]
+pub struct LotteryGameQueryRangeC {
+    min_month: *mut c_char,
+    max_month: *mut c_char,
+}
+
 pub type DrawResultC = BonusDrawNumbersC;
 
 #[unsafe(export_name = "download_api_doc")]
@@ -205,6 +211,29 @@ pub extern "C" fn query_history_draw_from_taiwan_lottery_ffi(
     map_history_result_to_struct_status(result, out_page)
 }
 
+#[unsafe(export_name = "lottery_game_query_month_range")]
+pub extern "C" fn lottery_game_query_month_range_ffi(
+    game: i32,
+    out_range: *mut *mut LotteryGameQueryRangeC,
+) -> i32 {
+    let game = match int_to_lottery_game(game) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    if out_range.is_null() {
+        return DownloadStatus::NullResultPointer as i32;
+    }
+
+    let range = game.query_month_range();
+    let c_range = lottery_game_query_range_to_c(range);
+    unsafe {
+        *out_range = Box::into_raw(c_range);
+    }
+
+    DownloadStatus::Success as i32
+}
+
 #[unsafe(export_name = "draw_by_game")]
 pub extern "C" fn draw_by_game_ffi(game: i32, out_result: *mut *mut DrawResultC) -> i32 {
     let game = match int_to_lottery_game(game) {
@@ -254,6 +283,22 @@ pub extern "C" fn free_history_draw_page_ffi(page: *mut HistoryDrawPageC) {
         for item in &*items_box {
             free_history_draw_item(item);
         }
+    }
+}
+
+#[unsafe(export_name = "free_lottery_game_query_month_range")]
+pub extern "C" fn free_lottery_game_query_month_range_ffi(range: *mut LotteryGameQueryRangeC) {
+    if range.is_null() {
+        return;
+    }
+
+    let range = unsafe { Box::from_raw(range) };
+
+    if !range.min_month.is_null() {
+        let _ = unsafe { CString::from_raw(range.min_month) };
+    }
+    if !range.max_month.is_null() {
+        let _ = unsafe { CString::from_raw(range.max_month) };
     }
 }
 
@@ -346,6 +391,13 @@ fn history_page_to_c(page: crate::HistoryDrawPage) -> Box<HistoryDrawPageC> {
         total_size: page.total_size,
         item_count,
         items: items_ptr,
+    })
+}
+
+fn lottery_game_query_range_to_c(range: crate::LotteryGameQueryRange) -> Box<LotteryGameQueryRangeC> {
+    Box::new(LotteryGameQueryRangeC {
+        min_month: string_to_c_ptr(range.min_month),
+        max_month: string_to_c_ptr(range.max_month),
     })
 }
 

@@ -46,6 +46,11 @@ typedef struct taiwan_lottery_history_draw_page {
 	taiwan_lottery_history_draw_item* items;
 } taiwan_lottery_history_draw_page;
 
+typedef struct taiwan_lottery_query_month_range {
+	char* min_month;
+	char* max_month;
+} taiwan_lottery_query_month_range;
+
 int query_history_draw(
 	const char* output_dir,
 	int game,
@@ -61,7 +66,12 @@ int query_history_draw_from_taiwan_lottery(
 	const char* end_month,
 	taiwan_lottery_history_draw_page** out_page);
 
+int lottery_game_query_month_range(
+	int game,
+	taiwan_lottery_query_month_range** out_range);
+
 void free_history_draw_page(taiwan_lottery_history_draw_page* page);
+void free_lottery_game_query_month_range(taiwan_lottery_query_month_range* range);
 
 #ifdef __cplusplus
 }

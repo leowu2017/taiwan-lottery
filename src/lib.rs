@@ -75,6 +75,11 @@ const TAIWAN_LOTTERY_RESULT_DOWNLOAD_URL: &str =
     "https://api.taiwanlottery.com/TLCAPIWeB/Lottery/ResultDownload";
 const TAIWAN_LOTTERY_FALLBACK_START_YEAR: i32 = 2007;
 const TAIWAN_LOTTERY_FALLBACK_MAX_YEAR: i32 = 2200;
+const THIRD_TERM_START_YEAR: i32 = 2007;
+const THIRD_TERM_END_YEAR: i32 = 2013;
+const FOURTH_TERM_START_YEAR: i32 = 2014;
+const FOURTH_TERM_END_YEAR: i32 = 2023;
+const FIFTH_TERM_END_YEAR: i32 = 2033;
 
 /// Supported lottery games for historical draw queries and random draws.
 ///
@@ -112,6 +117,13 @@ pub struct LotteryGameMetadata {
     pub display_name: &'static str,
     pub number_rule: &'static str,
     pub number_ranges: &'static [LotteryGameNumberRule],
+}
+
+/// Queryable month range for a game in `YYYY-MM` format.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LotteryGameQueryRange {
+    pub min_month: String,
+    pub max_month: String,
 }
 
 #[deprecated(note = "use LotteryGame instead")]
@@ -361,6 +373,17 @@ impl LotteryGame {
         }
     }
 
+    /// Returns the allowed query month range for this game in `YYYY-MM` format.
+    ///
+    /// The max month is capped to current UTC month for active fifth-term games.
+    pub fn query_month_range(self) -> LotteryGameQueryRange {
+        let (start, end) = game_query_month_bounds(self);
+        LotteryGameQueryRange {
+            min_month: start.to_yyyy_mm(),
+            max_month: end.to_yyyy_mm(),
+        }
+    }
+
     pub fn parse(value: &str) -> Option<Self> {
         match value.trim().to_ascii_lowercase().as_str() {
             "super-lotto638" | "superlotto638" | "5134" => Some(Self::SuperLotto638),
@@ -508,6 +531,144 @@ impl HistoryDrawQuery {
 
         Ok(("", month, end_month))
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct YearMonth {
+    year: i32,
+    month: u8,
+}
+
+impl YearMonth {
+    const fn new(year: i32, month: u8) -> Self {
+        Self { year, month }
+    }
+
+    fn parse_yyyy_mm(value: &str) -> Result<Self, DownloadError> {
+        let trimmed = value.trim();
+        let mut parts = trimmed.split('-');
+        let year = parts
+            .next()
+            .ok_or_else(|| std::io::Error::other("month must be in YYYY-MM format"))?
+            .parse::<i32>()
+            .map_err(|_| std::io::Error::other("month year must be a valid number"))?;
+        let month = parts
+            .next()
+            .ok_or_else(|| std::io::Error::other("month must be in YYYY-MM format"))?
+            .parse::<u8>()
+            .map_err(|_| std::io::Error::other("month must be a valid number"))?;
+
+        if parts.next().is_some() {
+            return Err(std::io::Error::other("month must be in YYYY-MM format").into());
+        }
+        if !(1..=12).contains(&month) {
+            return Err(std::io::Error::other("month must be between 01 and 12").into());
+        }
+
+        Ok(Self::new(year, month))
+    }
+
+    fn to_yyyy_mm(self) -> String {
+        format!("{:04}-{:02}", self.year, self.month)
+    }
+}
+
+fn current_utc_year_month() -> YearMonth {
+    let now = time::OffsetDateTime::now_utc();
+    YearMonth::new(now.year(), u8::from(now.month()))
+}
+
+fn parse_period_year(period: &str) -> Result<i32, DownloadError> {
+    let trimmed = period.trim();
+    if trimmed.len() < 3 {
+        return Err(std::io::Error::other("period must include at least 3 ROC year digits").into());
+    }
+
+    let roc_year = trimmed
+        .chars()
+        .take(3)
+        .collect::<String>()
+        .parse::<i32>()
+        .map_err(|_| std::io::Error::other("period must start with 3 ROC year digits"))?;
+    Ok(roc_year + 1911)
+}
+
+fn game_query_month_bounds(game: LotteryGame) -> (YearMonth, YearMonth) {
+    let dynamic_fifth_end = {
+        let now = current_utc_year_month();
+        let season_end = YearMonth::new(FIFTH_TERM_END_YEAR, 12);
+        if now < season_end {
+            now
+        } else {
+            season_end
+        }
+    };
+
+    match game {
+        LotteryGame::SuperLotto638
+        | LotteryGame::Lotto649
+        | LotteryGame::Daily539
+        | LotteryGame::Lotto3D
+        | LotteryGame::Lotto4D
+        | LotteryGame::Lotto49M6
+        | LotteryGame::Lotto39M5 => {
+            (YearMonth::new(THIRD_TERM_START_YEAR, 1), dynamic_fifth_end)
+        }
+        LotteryGame::Lotto38M6 => (
+            YearMonth::new(THIRD_TERM_START_YEAR, 1),
+            YearMonth::new(FOURTH_TERM_END_YEAR, 12),
+        ),
+        LotteryGame::Lotto1224 | LotteryGame::Lotto740 => (
+            YearMonth::new(FOURTH_TERM_START_YEAR, 1),
+            YearMonth::new(FOURTH_TERM_END_YEAR, 12),
+        ),
+        LotteryGame::TicTacToe | LotteryGame::Lotto638 => (
+            YearMonth::new(THIRD_TERM_START_YEAR, 1),
+            YearMonth::new(THIRD_TERM_END_YEAR, 12),
+        ),
+    }
+}
+
+fn validate_query_range_for_game(game: LotteryGame, query: &HistoryDrawQuery) -> Result<(), DownloadError> {
+    let (allowed_start, allowed_end) = game_query_month_bounds(game);
+    let (period, month, end_month) = query.normalized_params()?;
+
+    if !period.is_empty() {
+        let query_year = parse_period_year(period)?;
+        if query_year < allowed_start.year || query_year > allowed_end.year {
+            return Err(std::io::Error::other(format!(
+                "query period {period} (AD {query_year}) is outside supported range {}-{:02} to {}-{:02} for {}",
+                allowed_start.year,
+                allowed_start.month,
+                allowed_end.year,
+                allowed_end.month,
+                game.metadata().display_name
+            ))
+            .into());
+        }
+        return Ok(());
+    }
+
+    let query_start = YearMonth::parse_yyyy_mm(month)?;
+    let query_end = YearMonth::parse_yyyy_mm(end_month)?;
+    if query_end < query_start {
+        return Err(std::io::Error::other("end_month must be greater than or equal to month").into());
+    }
+    if query_start < allowed_start || query_end > allowed_end {
+        return Err(std::io::Error::other(format!(
+            "query month range {} to {} is outside supported range {}-{:02} to {}-{:02} for {}",
+            month,
+            end_month,
+            allowed_start.year,
+            allowed_start.month,
+            allowed_end.year,
+            allowed_end.month,
+            game.metadata().display_name
+        ))
+        .into());
+    }
+
+    Ok(())
 }
 
 /// A single lottery draw result from historical data.
@@ -1128,6 +1289,7 @@ fn query_history_draw_with_client(
     game: LotteryGame,
     query: &HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
+    validate_query_range_for_game(game, query)?;
     let (period, month, end_month) = query.normalized_params()?;
     let main_url = format!("{TAIWAN_LOTTERY_API_BASE_URL}{}", game.path());
     let mut all_items = fetch_all_pages_from_url(client, &main_url, period, month, end_month)?;
@@ -1293,6 +1455,7 @@ fn query_history_draw_from_downloaded_data(
     game: LotteryGame,
     query: &HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
+    validate_query_range_for_game(game, query)?;
     let (period, month, _) = query.normalized_params()?;
     let root = resolve_history_data_root(output_dir)?;
 
@@ -1775,6 +1938,66 @@ mod tests {
             .normalized_params()
             .expect_err("must fail without period or month");
         assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn validate_query_range_rejects_out_of_term_month_for_lotto_1224() {
+        let query = HistoryDrawQuery::by_month("2013-12");
+        let err = validate_query_range_for_game(LotteryGame::Lotto1224, &query)
+            .expect_err("1224 should not allow third-term month");
+        assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn validate_query_range_rejects_out_of_term_month_for_tic_tac_toe() {
+        let query = HistoryDrawQuery::by_month("2014-01");
+        let err = validate_query_range_for_game(LotteryGame::TicTacToe, &query)
+            .expect_err("tic-tac-toe should not allow fourth-term month");
+        assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn validate_query_range_rejects_out_of_term_period_for_lotto_740() {
+        let query = HistoryDrawQuery::by_period("113000001");
+        let err = validate_query_range_for_game(LotteryGame::Lotto740, &query)
+            .expect_err("740 should not allow fifth-term period");
+        assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn validate_query_range_accepts_third_to_fourth_overlap_game() {
+        let query = HistoryDrawQuery::by_month("2023-12");
+        validate_query_range_for_game(LotteryGame::Lotto38M6, &query)
+            .expect("38M6 should allow fourth-term month");
+    }
+
+    #[test]
+    fn validate_query_range_rejects_future_month_for_fifth_active_game() {
+        let now = current_utc_year_month();
+        let (future_year, future_month) = if now.month == 12 {
+            (now.year + 1, 1)
+        } else {
+            (now.year, now.month + 1)
+        };
+        let query = HistoryDrawQuery::by_month(format!("{future_year:04}-{future_month:02}"));
+        let err = validate_query_range_for_game(LotteryGame::Lotto649, &query)
+            .expect_err("lotto649 should not allow future month");
+        assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn lottery_game_query_month_range_is_exposed_for_ui() {
+        let range = LotteryGame::Lotto1224.query_month_range();
+        assert_eq!(range.min_month, "2014-01");
+        assert_eq!(range.max_month, "2023-12");
+    }
+
+    #[test]
+    fn lottery_game_query_month_range_caps_active_game_to_current_month() {
+        let range = LotteryGame::Lotto649.query_month_range();
+        let now = current_utc_year_month();
+        assert_eq!(range.min_month, "2007-01");
+        assert_eq!(range.max_month, format!("{:04}-{:02}", now.year, now.month));
     }
 
     #[test]

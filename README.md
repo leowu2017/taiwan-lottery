@@ -182,6 +182,18 @@ Run C tests from inside `c/build`:
   Calls the Taiwan Lottery web API directly.
   Draw-order numbers are exposed in `HistoryDrawItem.numbers.base.numbers`, and sorted numbers are exposed in `HistoryDrawItem.numbers.sorted` when available.
 
+Query range validation:
+
+- Both query APIs validate user-selected period/month range against official term windows from Taiwan Lottery history pages and APIs.
+- Third term: `2007-01` to `2013-12`.
+- Fourth term: `2014-01` to `2023-12`.
+- Fifth term: starts at `2024-01`; active games are limited to current UTC month (never future month).
+- Per-game supported range:
+  - `SuperLotto638`, `Lotto649`, `Daily539`, `Lotto39M5`, `Lotto49M6`, `Lotto3D`, `Lotto4D`: `2007-01` to current month.
+  - `Lotto38M6`: `2007-01` to `2023-12`.
+  - `Lotto1224`, `Lotto740`: `2014-01` to `2023-12`.
+  - `TicTacToe`, `Lotto638`: `2007-01` to `2013-12`.
+
 ### Draw APIs
 
 - `draw_by_game(game)`
@@ -198,6 +210,8 @@ Run C tests from inside `c/build`:
   Parses CLI/user aliases such as `lotto649`, `5118`, or `tic-tac-toe`.
 - `LotteryGame::from_code(code)`
   Maps the integer codes used by the C API and FFI layer back to `LotteryGame`.
+- `LotteryGame::query_month_range()`
+  Returns the UI-ready query range as `{ min_month, max_month }` (`YYYY-MM`) so frontend selectors can be constrained before submitting queries.
 
 Compatibility note:
 
@@ -241,6 +255,16 @@ use taiwan_lottery::LotteryGame;
 let metadata = LotteryGame::Lotto649.metadata();
 assert_eq!(metadata.display_name, "大樂透");
 assert_eq!(metadata.number_ranges[0].picks, 6);
+```
+
+Example UI query-range lookup:
+
+```rust
+use taiwan_lottery::LotteryGame;
+
+let range = LotteryGame::Lotto1224.query_month_range();
+assert_eq!(range.min_month, "2014-01");
+assert_eq!(range.max_month, "2023-12");
 ```
 
 Rust example commands:
