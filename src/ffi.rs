@@ -5,7 +5,7 @@ use crate::{
     download_all, download_api_doc, download_dataset, download_history_draw,
     download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery, draw_by_game,
     query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError, HistoryDrawQuery,
-    LotteryGame,
+    LotteryDisplayLanguage, LotteryGame,
 };
 
 #[repr(i32)]
@@ -21,6 +21,7 @@ enum DownloadStatus {
     InvalidGame = 8,
     InvalidQueryUtf8 = 9,
     NullResultPointer = 10,
+    InvalidLanguage = 11,
 }
 
 #[repr(C)]
@@ -76,6 +77,8 @@ pub struct LotteryGameNumberRuleC {
 #[repr(C)]
 pub struct LotteryGameMetadataC {
     display_name: *mut c_char,
+    display_name_english: *mut c_char,
+    display_name_chinese: *mut c_char,
     number_rule: *mut c_char,
     number_range_count: usize,
     number_ranges: *mut LotteryGameNumberRuleC,
@@ -268,7 +271,35 @@ pub extern "C" fn lottery_game_metadata_ffi(
         return DownloadStatus::NullResultPointer as i32;
     }
 
-    let metadata = game.metadata();
+    let metadata = game.metadata_with_language(LotteryDisplayLanguage::English);
+    let c_metadata = lottery_game_metadata_to_c(metadata);
+    unsafe {
+        *out_metadata = Box::into_raw(c_metadata);
+    }
+
+    DownloadStatus::Success as i32
+}
+
+#[unsafe(export_name = "lottery_game_metadata_with_language")]
+pub extern "C" fn lottery_game_metadata_with_language_ffi(
+    game: i32,
+    language: i32,
+    out_metadata: *mut *mut LotteryGameMetadataC,
+) -> i32 {
+    let game = match int_to_lottery_game(game) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+    let language = match int_to_display_language(language) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    if out_metadata.is_null() {
+        return DownloadStatus::NullResultPointer as i32;
+    }
+
+    let metadata = game.metadata_with_language(language);
     let c_metadata = lottery_game_metadata_to_c(metadata);
     unsafe {
         *out_metadata = Box::into_raw(c_metadata);
@@ -359,6 +390,12 @@ pub extern "C" fn free_lottery_game_metadata_ffi(metadata: *mut LotteryGameMetad
     if !metadata.display_name.is_null() {
         let _ = unsafe { CString::from_raw(metadata.display_name) };
     }
+    if !metadata.display_name_english.is_null() {
+        let _ = unsafe { CString::from_raw(metadata.display_name_english) };
+    }
+    if !metadata.display_name_chinese.is_null() {
+        let _ = unsafe { CString::from_raw(metadata.display_name_chinese) };
+    }
     if !metadata.number_rule.is_null() {
         let _ = unsafe { CString::from_raw(metadata.number_rule) };
     }
@@ -420,6 +457,14 @@ fn optional_c_str_arg_to_string(
 
 fn int_to_lottery_game(value: i32) -> Result<LotteryGame, i32> {
     LotteryGame::from_code(value).ok_or(DownloadStatus::InvalidGame as i32)
+}
+
+fn int_to_display_language(value: i32) -> Result<LotteryDisplayLanguage, i32> {
+    match value {
+        0 => Ok(LotteryDisplayLanguage::English),
+        1 => Ok(LotteryDisplayLanguage::Chinese),
+        _ => Err(DownloadStatus::InvalidLanguage as i32),
+    }
 }
 
 fn build_history_draw_query(
@@ -513,6 +558,8 @@ fn lottery_game_metadata_to_c(metadata: crate::LotteryGameMetadata) -> Box<Lotte
 
     Box::new(LotteryGameMetadataC {
         display_name: string_to_c_ptr(metadata.display_name.to_string()),
+        display_name_english: string_to_c_ptr(metadata.display_name_english.to_string()),
+        display_name_chinese: string_to_c_ptr(metadata.display_name_chinese.to_string()),
         number_rule: string_to_c_ptr(metadata.number_rule.to_string()),
         number_range_count,
         number_ranges,

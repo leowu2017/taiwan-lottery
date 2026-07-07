@@ -41,12 +41,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 Example UI metadata lookup:
 
 ```rust
-use taiwan_lottery::LotteryGame;
+use taiwan_lottery::{LotteryDisplayLanguage, LotteryGame};
 
 let metadata = LotteryGame::Lotto649.metadata();
-assert_eq!(metadata.display_name, "大樂透");
+assert_eq!(metadata.display_name, "Lotto 649");
+assert_eq!(metadata.display_name_chinese, "大樂透");
+
+let localized = LotteryGame::Lotto649.metadata_with_language(LotteryDisplayLanguage::Chinese);
+assert_eq!(localized.display_name, "大樂透");
 assert_eq!(metadata.number_ranges[0].picks, 6);
 ```
+
+Display language mapping (Rust <-> C):
+
+| Rust enum | C constant | Integer |
+| --- | --- | --- |
+| `LotteryDisplayLanguage::English` | `TAIWAN_LOTTERY_DISPLAY_LANGUAGE_ENGLISH` | `0` |
+| `LotteryDisplayLanguage::Chinese` | `TAIWAN_LOTTERY_DISPLAY_LANGUAGE_CHINESE` | `1` |
+
+Notes:
+
+- `LotteryGame::metadata()` and `lottery_game_metadata(...)` both default `display_name` to English.
+- Use `LotteryGame::metadata_with_language(...)` or `lottery_game_metadata_with_language(...)` for explicit language selection.
 
 Example UI query-range lookup:
 
@@ -97,6 +113,7 @@ Game metadata and query-range helpers are also exposed to C through `query.h`:
 
 - `lottery_game_query_month_range(...)`
 - `lottery_game_metadata(...)`
+- `lottery_game_metadata_with_language(...)`
 
 C examples mirror the Rust example modes where practical.
 

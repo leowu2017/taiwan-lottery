@@ -21,9 +21,22 @@ It exposes:
 - `query_history_draw_from_taiwan_lottery(...)`: query directly from Taiwan Lottery web API.
 - `lottery_game_query_month_range(...)`: get game-specific query month bounds (`min_month`, `max_month`) in `YYYY-MM`.
 - `lottery_game_metadata(...)`: get display name, rule text, and number-range segments for a game.
+- `lottery_game_metadata_with_language(...)`: same as metadata API, but choose display language explicitly.
 - `free_history_draw_page(...)`: release memory allocated by the two query APIs.
 - `free_lottery_game_query_month_range(...)`: release memory allocated by `lottery_game_query_month_range(...)`.
 - `free_lottery_game_metadata(...)`: release memory allocated by `lottery_game_metadata(...)`.
+
+Language constants for `lottery_game_metadata_with_language(...)`:
+
+- `TAIWAN_LOTTERY_DISPLAY_LANGUAGE_ENGLISH`
+- `TAIWAN_LOTTERY_DISPLAY_LANGUAGE_CHINESE`
+
+Language mapping (Rust <-> C):
+
+| Rust enum | C constant | Integer |
+| --- | --- | --- |
+| `LotteryDisplayLanguage::English` | `TAIWAN_LOTTERY_DISPLAY_LANGUAGE_ENGLISH` | `0` |
+| `LotteryDisplayLanguage::Chinese` | `TAIWAN_LOTTERY_DISPLAY_LANGUAGE_CHINESE` | `1` |
 
 Split headers by concern:
 

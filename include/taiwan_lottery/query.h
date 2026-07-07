@@ -18,6 +18,7 @@ extern "C" {
 #define TAIWAN_LOTTERY_INVALID_GAME 8
 #define TAIWAN_LOTTERY_INVALID_QUERY_UTF8 9
 #define TAIWAN_LOTTERY_NULL_RESULT_POINTER 10
+#define TAIWAN_LOTTERY_INVALID_LANGUAGE 11
 
 /* History game values for query_history_draw* C APIs */
 #define TAIWAN_LOTTERY_HISTORY_GAME_SUPER_LOTTO_638 0
@@ -33,6 +34,10 @@ extern "C" {
 #define TAIWAN_LOTTERY_HISTORY_GAME_TIC_TAC_TOE 10
 #define TAIWAN_LOTTERY_HISTORY_GAME_638 11
 #define TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO 12
+
+/* Display language values for lottery_game_metadata_with_language C API. */
+#define TAIWAN_LOTTERY_DISPLAY_LANGUAGE_ENGLISH 0
+#define TAIWAN_LOTTERY_DISPLAY_LANGUAGE_CHINESE 1
 
 typedef struct taiwan_lottery_history_draw_item {
 	/* Draw period identifier. */
@@ -75,8 +80,12 @@ typedef struct taiwan_lottery_game_number_rule {
 } taiwan_lottery_game_number_rule;
 
 typedef struct taiwan_lottery_game_metadata {
-	/* UI display name for the game. */
+	/* UI display name for the game (defaults to English). */
 	char* display_name;
+	/* English display name for the game. */
+	char* display_name_english;
+	/* Chinese display name for the game. */
+	char* display_name_chinese;
 	/* Human-readable rule summary. */
 	char* number_rule;
 	/* Number of entries in number_ranges. */
@@ -110,6 +119,16 @@ int lottery_game_query_month_range(
 /* Get display metadata and number-rule segments for one game. Caller must free out_metadata. */
 int lottery_game_metadata(
 	int game,
+	taiwan_lottery_game_metadata** out_metadata);
+
+/*
+ * Get display metadata and number-rule segments for one game with explicit language.
+ * Pass TAIWAN_LOTTERY_DISPLAY_LANGUAGE_ENGLISH or TAIWAN_LOTTERY_DISPLAY_LANGUAGE_CHINESE.
+ * Caller must free out_metadata.
+ */
+int lottery_game_metadata_with_language(
+	int game,
+	int language,
 	taiwan_lottery_game_metadata** out_metadata);
 
 /* Release memory returned by query_history_draw or query_history_draw_from_taiwan_lottery. */
