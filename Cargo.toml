@@ -1,6 +1,6 @@
 [package]
 name = "taiwan-lottery"
-version = "0.1.0"
+version = "0.2.0-beta.0"
 edition = "2021"
 description = "Taiwan lottery download, query, and random draw capabilities with Rust and C APIs"
 authors = ["Leo Wu"]
