@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     }
 
     if (strcmp(source, "local") == 0) {
-        if (argc < 4 + value_count + 1) {
+        if (argc < 4 + value_count) {
             fprintf(stderr, "Missing query value(s) for mode: %s\n", query_mode);
             print_usage(program);
             return 2;

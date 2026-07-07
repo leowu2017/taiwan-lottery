@@ -17,6 +17,7 @@ struct LocalHistoryDrawRecord {
 }
 
 pub(crate) fn history_game_file_prefixes(game: LotteryGame) -> &'static [&'static str] {
+    // Keep local file matching strict so similarly named games do not bleed into each other.
     match game {
         LotteryGame::SuperLotto638 => &["威力彩_"],
         LotteryGame::Lotto649 => &["大樂透_"],
@@ -35,6 +36,7 @@ pub(crate) fn history_game_file_prefixes(game: LotteryGame) -> &'static [&'stati
 }
 
 fn resolve_history_data_root(output_dir: &Path) -> Result<PathBuf, DownloadError> {
+    // Accept either the repository data root or a direct D423F directory path.
     if output_dir
         .file_name()
         .and_then(|value| value.to_str())
@@ -88,6 +90,7 @@ fn parse_date_month(date: &str) -> Option<String> {
 }
 
 fn extract_draw_numbers(headers: &csv::StringRecord, record: &csv::StringRecord) -> Vec<i32> {
+    // Taiwan Lottery CSVs use a mix of primary/bonus column names across games.
     headers
         .iter()
         .enumerate()
@@ -157,6 +160,7 @@ pub(crate) fn query_history_draw_from_downloaded_data(
     game: LotteryGame,
     query: &HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
+    // Local CSVs are aggregated across years, so filter after collecting and dedup by period.
     validate_query_range_for_game(game, query)?;
     let (period, month, _) = query.normalized_params()?;
     let root = resolve_history_data_root(output_dir)?;

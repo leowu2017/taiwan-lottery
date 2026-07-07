@@ -107,6 +107,51 @@ static void test_query_month_range_invalid_game_returns_error(void) {
     assert(range == NULL);
 }
 
+static void test_game_metadata_exposes_number_rules(void) {
+    taiwan_lottery_game_metadata *metadata = NULL;
+    int status = lottery_game_metadata(TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649, &metadata);
+
+    assert(status == TAIWAN_LOTTERY_OK);
+    assert(metadata != NULL);
+    assert(metadata->display_name != NULL);
+    assert(metadata->number_rule != NULL);
+    assert(strcmp(metadata->display_name, "大樂透") == 0);
+    assert(strcmp(metadata->number_rule, "6 numbers from 1-49, plus 1 bonus number from 1-49") == 0);
+    assert(metadata->number_range_count == 2);
+    assert(metadata->number_ranges != NULL);
+    assert(strcmp(metadata->number_ranges[0].name, "main") == 0);
+    assert(metadata->number_ranges[0].picks == 6);
+    assert(metadata->number_ranges[0].min == 1);
+    assert(metadata->number_ranges[0].max == 49);
+    assert(metadata->number_ranges[0].allow_repeat == 0);
+    assert(strcmp(metadata->number_ranges[1].name, "bonus") == 0);
+
+    free_lottery_game_metadata(metadata);
+}
+
+static void test_game_metadata_for_bingo_bingo_exposes_super_rule(void) {
+    taiwan_lottery_game_metadata *metadata = NULL;
+    int status = lottery_game_metadata(TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO, &metadata);
+
+    assert(status == TAIWAN_LOTTERY_OK);
+    assert(metadata != NULL);
+    assert(metadata->number_range_count == 2);
+    assert(strcmp(metadata->number_ranges[1].name, "super") == 0);
+    assert(metadata->number_ranges[1].picks == 1);
+    assert(metadata->number_ranges[1].min == 1);
+    assert(metadata->number_ranges[1].max == 80);
+
+    free_lottery_game_metadata(metadata);
+}
+
+static void test_game_metadata_invalid_game_returns_error(void) {
+    taiwan_lottery_game_metadata *metadata = NULL;
+    int status = lottery_game_metadata(999, &metadata);
+
+    assert(status == TAIWAN_LOTTERY_INVALID_GAME);
+    assert(metadata == NULL);
+}
+
 int main(void) {
     test_lotto649_local_query();
     test_3d_local_query();
@@ -114,5 +159,8 @@ int main(void) {
     test_invalid_game_code_returns_error_for_remote_query();
     test_query_month_range_by_game();
     test_query_month_range_invalid_game_returns_error();
+    test_game_metadata_exposes_number_rules();
+    test_game_metadata_for_bingo_bingo_exposes_super_rule();
+    test_game_metadata_invalid_game_returns_error();
     return 0;
 }

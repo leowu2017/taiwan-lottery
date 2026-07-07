@@ -103,25 +103,35 @@ pub enum LotteryGame {
 /// One number selection segment for a lottery game.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LotteryGameNumberRule {
+    /// Segment name such as `main`, `bonus`, `super`, or `zone_1`.
     pub name: &'static str,
+    /// How many numbers are selected from this segment.
     pub picks: usize,
+    /// Inclusive minimum value for this segment.
     pub min: i32,
+    /// Inclusive maximum value for this segment.
     pub max: i32,
+    /// Whether values in this segment may repeat.
     pub allow_repeat: bool,
 }
 
 /// Static metadata for rendering lottery game information in UI layers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LotteryGameMetadata {
+    /// UI display name for the game.
     pub display_name: &'static str,
+    /// Human-readable summary of the game's number-selection rule.
     pub number_rule: &'static str,
+    /// Rule segments that together define how numbers are selected.
     pub number_ranges: &'static [LotteryGameNumberRule],
 }
 
 /// Queryable month range for a game in `YYYY-MM` format.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LotteryGameQueryRange {
+    /// Earliest supported query month.
     pub min_month: String,
+    /// Latest supported query month.
     pub max_month: String,
 }
 
@@ -135,6 +145,7 @@ pub type HistoryGameNumberRule = LotteryGameNumberRule;
 pub type HistoryGameMetadata = LotteryGameMetadata;
 
 impl LotteryGame {
+    /// All supported games in a stable order suitable for UI lists.
     pub const ALL: [Self; 13] = [
         Self::SuperLotto638,
         Self::Lotto649,
@@ -151,6 +162,7 @@ impl LotteryGame {
         Self::BingoBingo,
     ];
 
+    /// Returns static metadata describing display name and number-selection rules.
     pub const fn metadata(self) -> LotteryGameMetadata {
         metadata_for_game(self)
     }
@@ -166,6 +178,10 @@ impl LotteryGame {
         }
     }
 
+    /// Parses CLI/user aliases into a supported game.
+    ///
+    /// Parsing is ASCII case-insensitive and accepts both display-oriented names
+    /// and short numeric aliases used by Taiwan Lottery and the C API.
     pub fn parse(value: &str) -> Option<Self> {
         match value.trim().to_ascii_lowercase().as_str() {
             "super-lotto638" | "superlotto638" | "5134" => Some(Self::SuperLotto638),
@@ -185,6 +201,7 @@ impl LotteryGame {
         }
     }
 
+    /// Maps the integer codes used by the FFI and C API back to a game.
     pub const fn from_code(code: i32) -> Option<Self> {
         match code {
             0 => Some(Self::SuperLotto638),
