@@ -1,12 +1,204 @@
 use std::collections::HashSet;
 
-use crate::rule::{validate_query_range_for_game, YearMonth};
 use crate::{
     DownloadError, HistoryDrawItem, HistoryDrawPage, HistoryDrawQuery, LotteryGame,
+    RemoteQueryParamSupport,
     SortedDrawNumbers,
 };
 
 const TAIWAN_LOTTERY_API_BASE_URL: &str = "https://api.taiwanlottery.com/TLCAPIWeB";
+const THIRD_TERM_START_YEAR: i32 = 2007;
+const THIRD_TERM_END_YEAR: i32 = 2013;
+const FOURTH_TERM_START_YEAR: i32 = 2014;
+const FOURTH_TERM_END_YEAR: i32 = 2023;
+const FIFTH_TERM_END_YEAR: i32 = 2033;
+const BINGO_BINGO_START_YEAR: i32 = 2024;
+
+// Empirical remote-query support matrix (public API calls on 2026-07-08).
+//
+// Evaluation rule:
+// - OK: sampled request returned non-empty result data.
+// - FAIL: sampled request returned empty data (even with HTTP 200 and rtCode=0).
+//
+// Game            Endpoint              month  month+endMonth  openDate  period
+// SuperLotto638   SuperLotto638Result   OK     OK              FAIL      OK
+// Lotto649        Lotto649Result        OK     OK              FAIL      OK
+// Daily539        Daily539Result        OK     OK              FAIL      OK
+// 3D              3DResult              OK     OK              FAIL      OK
+// 4D              4DResult              OK     OK              FAIL      OK
+// 49M6            49M6Result            OK     OK              FAIL      OK
+// 39M5            39M5Result            OK     OK              FAIL      OK
+// 38M6            38M6Result            OK     OK              FAIL      OK
+// 1224            Lotto1224Result       OK     OK              FAIL      OK
+// 740             Lotto740Result        OK     OK              FAIL      OK
+// TicTacToe       TicTacToeResult       OK     OK              FAIL      OK
+// 638             Lotto638Result        OK     OK              FAIL      OK
+// BingoBingo      BingoResult           FAIL   FAIL            OK        FAIL
+//
+// Practical interpretation:
+// - Non-Bingo endpoints are data-positive for month/month+endMonth/period.
+// - Bingo endpoint is data-positive for openDate.
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct YearMonth {
+    pub(crate) year: i32,
+    pub(crate) month: u8,
+}
+
+impl YearMonth {
+    pub(crate) const fn new(year: i32, month: u8) -> Self {
+        Self { year, month }
+    }
+
+    pub(crate) fn parse_yyyy_mm(value: &str) -> Result<Self, DownloadError> {
+        let trimmed = value.trim();
+        let mut parts = trimmed.split('-');
+        let year = parts
+            .next()
+            .ok_or_else(|| std::io::Error::other("month must be in YYYY-MM format"))?
+            .parse::<i32>()
+            .map_err(|_| std::io::Error::other("month year must be a valid number"))?;
+        let month = parts
+            .next()
+            .ok_or_else(|| std::io::Error::other("month must be in YYYY-MM format"))?
+            .parse::<u8>()
+            .map_err(|_| std::io::Error::other("month must be a valid number"))?;
+
+        if parts.next().is_some() {
+            return Err(std::io::Error::other("month must be in YYYY-MM format").into());
+        }
+        if !(1..=12).contains(&month) {
+            return Err(std::io::Error::other("month must be between 01 and 12").into());
+        }
+
+        Ok(Self::new(year, month))
+    }
+
+    pub(crate) fn to_yyyy_mm(self) -> String {
+        format!("{:04}-{:02}", self.year, self.month)
+    }
+}
+
+pub(crate) fn current_utc_year_month() -> YearMonth {
+    let now = time::OffsetDateTime::now_utc();
+    YearMonth::new(now.year(), u8::from(now.month()))
+}
+
+fn parse_period_year(period: &str) -> Result<i32, DownloadError> {
+    let trimmed = period.trim();
+    if trimmed.len() < 3 {
+        return Err(
+            std::io::Error::other("period must include at least 3 ROC year digits").into(),
+        );
+    }
+
+    let roc_year = trimmed
+        .chars()
+        .take(3)
+        .collect::<String>()
+        .parse::<i32>()
+        .map_err(|_| std::io::Error::other("period must start with 3 ROC year digits"))?;
+    Ok(roc_year + 1911)
+}
+
+pub(crate) fn game_query_month_bounds(game: LotteryGame) -> (YearMonth, YearMonth) {
+    let dynamic_fifth_end = {
+        let now = current_utc_year_month();
+        let season_end = YearMonth::new(FIFTH_TERM_END_YEAR, 12);
+        if now < season_end {
+            now
+        } else {
+            season_end
+        }
+    };
+
+    match game {
+        LotteryGame::SuperLotto638
+        | LotteryGame::Lotto649
+        | LotteryGame::Daily539
+        | LotteryGame::Lotto3D
+        | LotteryGame::Lotto4D
+        | LotteryGame::Lotto49M6
+        | LotteryGame::Lotto39M5 => (YearMonth::new(THIRD_TERM_START_YEAR, 1), dynamic_fifth_end),
+        LotteryGame::BingoBingo => (YearMonth::new(BINGO_BINGO_START_YEAR, 1), dynamic_fifth_end),
+        LotteryGame::Lotto38M6 => (
+            YearMonth::new(THIRD_TERM_START_YEAR, 1),
+            YearMonth::new(FOURTH_TERM_END_YEAR, 12),
+        ),
+        LotteryGame::Lotto1224 | LotteryGame::Lotto740 => (
+            YearMonth::new(FOURTH_TERM_START_YEAR, 1),
+            YearMonth::new(FOURTH_TERM_END_YEAR, 12),
+        ),
+        LotteryGame::TicTacToe | LotteryGame::Lotto638 => (
+            YearMonth::new(THIRD_TERM_START_YEAR, 1),
+            YearMonth::new(THIRD_TERM_END_YEAR, 12),
+        ),
+    }
+}
+
+pub(crate) fn validate_query_range_for_game(
+    game: LotteryGame,
+    query: &HistoryDrawQuery,
+) -> Result<(), DownloadError> {
+    let (allowed_start, allowed_end) = game_query_month_bounds(game);
+    let (period, month, end_month) = query.normalized_params()?;
+
+    if !period.is_empty() {
+        let query_year = parse_period_year(period)?;
+        if query_year < allowed_start.year || query_year > allowed_end.year {
+            return Err(std::io::Error::other(format!(
+                "query period {period} (AD {query_year}) is outside supported range {}-{:02} to {}-{:02} for {}",
+                allowed_start.year,
+                allowed_start.month,
+                allowed_end.year,
+                allowed_end.month,
+                game.metadata().display_name
+            ))
+            .into());
+        }
+        return Ok(());
+    }
+
+    let query_start = YearMonth::parse_yyyy_mm(month)?;
+    let query_end = YearMonth::parse_yyyy_mm(end_month)?;
+    if query_end < query_start {
+        return Err(
+            std::io::Error::other("end_month must be greater than or equal to month").into(),
+        );
+    }
+    if query_start < allowed_start || query_end > allowed_end {
+        return Err(std::io::Error::other(format!(
+            "query month range {} to {} is outside supported range {}-{:02} to {}-{:02} for {}",
+            month,
+            end_month,
+            allowed_start.year,
+            allowed_start.month,
+            allowed_end.year,
+            allowed_end.month,
+            game.metadata().display_name
+        ))
+        .into());
+    }
+
+    Ok(())
+}
+
+pub(crate) const fn remote_query_param_support(game: LotteryGame) -> RemoteQueryParamSupport {
+    match game {
+        LotteryGame::BingoBingo => RemoteQueryParamSupport {
+            month: false,
+            end_month: false,
+            open_date: true,
+            period: false,
+        },
+        _ => RemoteQueryParamSupport {
+            month: true,
+            end_month: true,
+            open_date: false,
+            period: true,
+        },
+    }
+}
 
 #[derive(Debug, serde::Deserialize)]
 struct TaiwanLotteryHistoryResponse {
