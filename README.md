@@ -233,23 +233,19 @@ Example output layout:
 - `data/D410F/<downloaded files from links in D410F.csv>`
 - `data/D410F/<zip-file-stem>/<extracted files from that zip>`
 
-## Data Source Notes
+## External Resources
 
-Taiwan lottery related open data is exposed from NTA's OpenAPI docs:
+Public Taiwan Lottery and government open-data pages, plus externally visible URL formats,
+are documented in `RESOURCE.md`.
 
-- API docs JSON:
-  `https://gaze.nta.gov.tw/ntaOpenApi/v2/api-docs?group=FinancialPlanning`
+Use `RESOURCE.md` for:
 
-Mapping rule:
+- dataset entry pages
+- Taiwan Lottery website entry pages
+- public API URL formats
+- Bingo Bingo query-format differences
 
-1. Read all entries under `paths` in the API docs JSON.
-2. Each path looks like `/restful/D423F`.
-3. Extract the code after `/restful/`.
-4. Build the CSV download URL with `https://gaze.nta.gov.tw/dntmb/OpenData/csvDw?ntaCode=<CODE>`.
-
-Example:
-
-- `/restful/D423F` -> `https://gaze.nta.gov.tw/dntmb/OpenData/csvDw?ntaCode=D423F`
+Keep project-specific behavior, validation rules, fallback logic, and implementation notes in this `README.md`.
 
 ## Build And Test
 
