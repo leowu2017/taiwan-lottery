@@ -13,7 +13,7 @@ static void print_usage(const char *program) {
     fprintf(stderr, "  %s remote <game> period <PERIOD>\n", program);
     fprintf(stderr, "  %s remote <game> month <YYYY-MM>\n", program);
     fprintf(stderr, "  %s remote <game> month-range <YYYY-MM> <YYYY-MM>\n", program);
-    fprintf(stderr, "  game: super-lotto638 | lotto649 | daily539 | 3d | 4d | 49m6 | 39m5 | 38m6 | 1224 | 740 | tic-tac-toe | 638\n");
+    fprintf(stderr, "  game: super-lotto638 | lotto649 | daily539 | 3d | 4d | 49m6 | 39m5 | 38m6 | 1224 | 740 | tic-tac-toe | 638 | bingo-bingo\n");
 }
 
 

@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use taiwan_lottery::{
-    query_history_draw, query_history_draw_from_taiwan_lottery, HistoryDrawPage, HistoryDrawQuery,
-    LotteryGame,
+    query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError, HistoryDrawPage,
+    HistoryDrawQuery, LotteryGame,
 };
 
 #[derive(Debug)]
@@ -112,17 +112,14 @@ fn canonicalize(page: &HistoryDrawPage) -> BTreeMap<String, Vec<i32>> {
             .sorted
             .clone()
             .unwrap_or_else(|| item.numbers.base.numbers.clone());
-        out.insert(
-            item.period.clone(),
-            normalized,
-        );
+        out.insert(item.period.clone(), normalized);
     }
     out
 }
 
 fn execute_query(
     source: &str,
-    result: Result<HistoryDrawPage, taiwan_lottery::DownloadError>,
+    result: Result<HistoryDrawPage, DownloadError>,
 ) -> Result<QueryOutcome, String> {
     match result {
         Ok(page) => {
@@ -145,14 +142,13 @@ fn execute_query(
     }
 }
 
-fn compare_one_month(
-    data_dir: &PathBuf,
-    game: LotteryGame,
-    month: &str,
-) -> Result<(), String> {
+fn compare_one_month(data_dir: &PathBuf, game: LotteryGame, month: &str) -> Result<(), String> {
     let query = HistoryDrawQuery::by_month(month.to_string());
     let local = execute_query("local", query_history_draw(data_dir, game, query.clone()))?;
-    let remote = execute_query("remote", query_history_draw_from_taiwan_lottery(game, query))?;
+    let remote = execute_query(
+        "remote",
+        query_history_draw_from_taiwan_lottery(game, query),
+    )?;
 
     match (local, remote) {
         (QueryOutcome::Data(lhs), QueryOutcome::Data(rhs)) => {
@@ -209,7 +205,10 @@ fn check_out_of_range_months(data_dir: &PathBuf, game: LotteryGame) -> Result<()
         let query = HistoryDrawQuery::by_month(month_text.clone());
 
         let local = execute_query("local", query_history_draw(data_dir, game, query.clone()))?;
-        let remote = execute_query("remote", query_history_draw_from_taiwan_lottery(game, query))?;
+        let remote = execute_query(
+            "remote",
+            query_history_draw_from_taiwan_lottery(game, query),
+        )?;
 
         match (local, remote) {
             (QueryOutcome::Empty, QueryOutcome::Empty) => {}
@@ -229,7 +228,9 @@ fn check_out_of_range_months(data_dir: &PathBuf, game: LotteryGame) -> Result<()
     Ok(())
 }
 
-fn main() {
+#[test]
+#[ignore = "network-dependent parity check"]
+fn local_remote_boundary_and_out_of_range_match() {
     let data_dir = default_output_dir();
     let mut checked_boundary_months: usize = 0;
     let mut boundary_failures = Vec::new();
@@ -271,11 +272,8 @@ fn main() {
         }
     }
 
-    if boundary_failures.is_empty() && out_of_range_failures.is_empty() {
-        println!("RESULT=OK");
-        return;
-    }
-
-    println!("RESULT=DIFF");
-    std::process::exit(1);
+    assert!(
+        boundary_failures.is_empty() && out_of_range_failures.is_empty(),
+        "local/remote parity mismatch found"
+    );
 }

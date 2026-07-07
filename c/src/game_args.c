@@ -41,6 +41,9 @@ int taiwan_lottery_parse_game_arg(const char *value) {
     if (strcmp(value, "638") == 0 || strcmp(value, "2500") == 0) {
         return TAIWAN_LOTTERY_HISTORY_GAME_638;
     }
+    if (strcmp(value, "bingo-bingo") == 0 || strcmp(value, "bingobingo") == 0 || strcmp(value, "1102") == 0) {
+        return TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO;
+    }
 
     return -1;
 }

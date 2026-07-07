@@ -3,9 +3,9 @@ use std::os::raw::c_char;
 
 use crate::{
     download_all, download_api_doc, download_dataset, download_history_draw,
-    download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
-    draw_by_game, query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError,
-    HistoryDrawQuery, LotteryGame,
+    download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery, draw_by_game,
+    query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError, HistoryDrawQuery,
+    LotteryGame,
 };
 
 #[repr(i32)]
@@ -81,7 +81,10 @@ pub extern "C" fn download_api_doc_ffi(output_dir: *const c_char) -> i32 {
 }
 
 #[unsafe(export_name = "download_dataset")]
-pub extern "C" fn download_dataset_ffi(output_dir: *const c_char, dataset_code: *const c_char) -> i32 {
+pub extern "C" fn download_dataset_ffi(
+    output_dir: *const c_char,
+    dataset_code: *const c_char,
+) -> i32 {
     let out_dir = match c_str_arg_to_string(
         output_dir,
         DownloadStatus::NullPath as i32,
@@ -277,7 +280,10 @@ pub extern "C" fn free_history_draw_page_ffi(page: *mut HistoryDrawPageC) {
     if !page.items.is_null() {
         // SAFETY: items points to an allocation created by Box<[HistoryDrawItemC]> in this crate.
         let items_box = unsafe {
-            Box::from_raw(std::ptr::slice_from_raw_parts_mut(page.items, page.item_count))
+            Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                page.items,
+                page.item_count,
+            ))
         };
 
         for item in &*items_box {
@@ -302,7 +308,11 @@ pub extern "C" fn free_lottery_game_query_month_range_ffi(range: *mut LotteryGam
     }
 }
 
-fn c_str_arg_to_string(ptr: *const c_char, null_status: i32, invalid_utf8_status: i32) -> Result<String, i32> {
+fn c_str_arg_to_string(
+    ptr: *const c_char,
+    null_status: i32,
+    invalid_utf8_status: i32,
+) -> Result<String, i32> {
     if ptr.is_null() {
         return Err(null_status);
     }
@@ -315,7 +325,10 @@ fn c_str_arg_to_string(ptr: *const c_char, null_status: i32, invalid_utf8_status
     }
 }
 
-fn optional_c_str_arg_to_string(ptr: *const c_char, invalid_utf8_status: i32) -> Result<Option<String>, i32> {
+fn optional_c_str_arg_to_string(
+    ptr: *const c_char,
+    invalid_utf8_status: i32,
+) -> Result<Option<String>, i32> {
     if ptr.is_null() {
         return Ok(None);
     }
@@ -346,7 +359,8 @@ fn build_history_draw_query(
 ) -> Result<HistoryDrawQuery, i32> {
     let period = optional_c_str_arg_to_string(period, DownloadStatus::InvalidQueryUtf8 as i32)?;
     let month = optional_c_str_arg_to_string(month, DownloadStatus::InvalidQueryUtf8 as i32)?;
-    let end_month = optional_c_str_arg_to_string(end_month, DownloadStatus::InvalidQueryUtf8 as i32)?;
+    let end_month =
+        optional_c_str_arg_to_string(end_month, DownloadStatus::InvalidQueryUtf8 as i32)?;
 
     Ok(HistoryDrawQuery {
         period,
@@ -394,7 +408,9 @@ fn history_page_to_c(page: crate::HistoryDrawPage) -> Box<HistoryDrawPageC> {
     })
 }
 
-fn lottery_game_query_range_to_c(range: crate::LotteryGameQueryRange) -> Box<LotteryGameQueryRangeC> {
+fn lottery_game_query_range_to_c(
+    range: crate::LotteryGameQueryRange,
+) -> Box<LotteryGameQueryRangeC> {
     Box::new(LotteryGameQueryRangeC {
         min_month: string_to_c_ptr(range.min_month),
         max_month: string_to_c_ptr(range.max_month),

@@ -21,19 +21,32 @@ fn main() {
     let mode = args.next().unwrap_or_else(|| "all".to_string());
     let result = match mode.as_str() {
         "all" => {
-            let output_dir = args.next().map(PathBuf::from).unwrap_or_else(default_output_dir);
+            let output_dir = args
+                .next()
+                .map(PathBuf::from)
+                .unwrap_or_else(default_output_dir);
             taiwan_lottery::download_all(&output_dir).map(|files| {
-                println!("Downloaded {} files into {}", files.len(), output_dir.display());
+                println!(
+                    "Downloaded {} files into {}",
+                    files.len(),
+                    output_dir.display()
+                );
             })
         }
         "api-doc" => {
-            let output_dir = args.next().map(PathBuf::from).unwrap_or_else(default_output_dir);
+            let output_dir = args
+                .next()
+                .map(PathBuf::from)
+                .unwrap_or_else(default_output_dir);
             taiwan_lottery::download_api_doc(&output_dir).map(|path| {
                 println!("Downloaded API docs to {}", path.display());
             })
         }
         "history-draw" => {
-            let output_dir = args.next().map(PathBuf::from).unwrap_or_else(default_output_dir);
+            let output_dir = args
+                .next()
+                .map(PathBuf::from)
+                .unwrap_or_else(default_output_dir);
             taiwan_lottery::download_history_draw(&output_dir).map(|files| {
                 println!(
                     "Downloaded history draw dataset with {} files into {}",
@@ -43,7 +56,10 @@ fn main() {
             })
         }
         "history-draw-gov" => {
-            let output_dir = args.next().map(PathBuf::from).unwrap_or_else(default_output_dir);
+            let output_dir = args
+                .next()
+                .map(PathBuf::from)
+                .unwrap_or_else(default_output_dir);
             taiwan_lottery::download_history_draw_from_gov_data(&output_dir).map(|files| {
                 println!(
                     "Downloaded history draw (gov data) with {} files into {}",
@@ -53,7 +69,10 @@ fn main() {
             })
         }
         "history-draw-taiwan-lottery" => {
-            let output_dir = args.next().map(PathBuf::from).unwrap_or_else(default_output_dir);
+            let output_dir = args
+                .next()
+                .map(PathBuf::from)
+                .unwrap_or_else(default_output_dir);
             taiwan_lottery::download_history_draw_from_taiwan_lottery(&output_dir).map(|files| {
                 println!(
                     "Downloaded history draw (taiwan lottery) with {} files into {}",
@@ -67,7 +86,10 @@ fn main() {
                 print_usage(&program);
                 std::process::exit(2);
             };
-            let output_dir = args.next().map(PathBuf::from).unwrap_or_else(default_output_dir);
+            let output_dir = args
+                .next()
+                .map(PathBuf::from)
+                .unwrap_or_else(default_output_dir);
             taiwan_lottery::download_dataset(&output_dir, &dataset_code).map(|files| {
                 println!(
                     "Downloaded dataset {} with {} files into {}",

@@ -36,6 +36,7 @@ int main(void) {
         {TAIWAN_LOTTERY_HISTORY_GAME_740, 7, 1, 1, 38, 1, 8},
         {TAIWAN_LOTTERY_HISTORY_GAME_TIC_TAC_TOE, 20, 0, 1, 80, 0, 0},
         {TAIWAN_LOTTERY_HISTORY_GAME_638, 6, 1, 1, 49, 1, 10},
+        {TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO, 20, 1, 1, 80, 1, 80},
     };
     size_t index;
 
