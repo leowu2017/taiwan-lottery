@@ -47,6 +47,7 @@ struct TaiwanLotteryBingoItem {
 }
 
 fn build_http_client() -> Result<reqwest::blocking::Client, DownloadError> {
+    // Use the same conservative timeout for all direct Taiwan Lottery API calls.
     reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
         .build()
@@ -228,6 +229,7 @@ fn fetch_all_pages_from_url(
 }
 
 fn parse_number_strings(values: Option<&[String]>) -> Vec<i32> {
+    // Bingo responses encode numbers as strings rather than numeric JSON values.
     values
         .unwrap_or(&[])
         .iter()
@@ -252,6 +254,7 @@ fn days_in_month(year: i32, month: u8) -> u8 {
 }
 
 fn month_range_days(start: YearMonth, end: YearMonth) -> Vec<String> {
+    // Bingo history is queried by openDate, so expand month ranges into daily requests.
     let mut result = Vec::new();
     let mut cursor = start;
 
@@ -357,6 +360,7 @@ fn query_bingo_history_with_client(
     client: &reqwest::blocking::Client,
     query: &HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
+    // Bingo uses a different endpoint contract from the month-based NumberHistory APIs.
     let (period, month, end_month) = query.normalized_params()?;
     if !period.is_empty() {
         return Err(std::io::Error::other(

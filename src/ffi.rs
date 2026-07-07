@@ -64,6 +64,23 @@ pub struct LotteryGameQueryRangeC {
     max_month: *mut c_char,
 }
 
+#[repr(C)]
+pub struct LotteryGameNumberRuleC {
+    name: *mut c_char,
+    picks: usize,
+    min: i32,
+    max: i32,
+    allow_repeat: i32,
+}
+
+#[repr(C)]
+pub struct LotteryGameMetadataC {
+    display_name: *mut c_char,
+    number_rule: *mut c_char,
+    number_range_count: usize,
+    number_ranges: *mut LotteryGameNumberRuleC,
+}
+
 pub type DrawResultC = BonusDrawNumbersC;
 
 #[unsafe(export_name = "download_api_doc")]
@@ -237,6 +254,29 @@ pub extern "C" fn lottery_game_query_month_range_ffi(
     DownloadStatus::Success as i32
 }
 
+#[unsafe(export_name = "lottery_game_metadata")]
+pub extern "C" fn lottery_game_metadata_ffi(
+    game: i32,
+    out_metadata: *mut *mut LotteryGameMetadataC,
+) -> i32 {
+    let game = match int_to_lottery_game(game) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    if out_metadata.is_null() {
+        return DownloadStatus::NullResultPointer as i32;
+    }
+
+    let metadata = game.metadata();
+    let c_metadata = lottery_game_metadata_to_c(metadata);
+    unsafe {
+        *out_metadata = Box::into_raw(c_metadata);
+    }
+
+    DownloadStatus::Success as i32
+}
+
 #[unsafe(export_name = "draw_by_game")]
 pub extern "C" fn draw_by_game_ffi(game: i32, out_result: *mut *mut DrawResultC) -> i32 {
     let game = match int_to_lottery_game(game) {
@@ -305,6 +345,36 @@ pub extern "C" fn free_lottery_game_query_month_range_ffi(range: *mut LotteryGam
     }
     if !range.max_month.is_null() {
         let _ = unsafe { CString::from_raw(range.max_month) };
+    }
+}
+
+#[unsafe(export_name = "free_lottery_game_metadata")]
+pub extern "C" fn free_lottery_game_metadata_ffi(metadata: *mut LotteryGameMetadataC) {
+    if metadata.is_null() {
+        return;
+    }
+
+    let metadata = unsafe { Box::from_raw(metadata) };
+
+    if !metadata.display_name.is_null() {
+        let _ = unsafe { CString::from_raw(metadata.display_name) };
+    }
+    if !metadata.number_rule.is_null() {
+        let _ = unsafe { CString::from_raw(metadata.number_rule) };
+    }
+    if !metadata.number_ranges.is_null() {
+        let rules = unsafe {
+            Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                metadata.number_ranges,
+                metadata.number_range_count,
+            ))
+        };
+
+        for rule in &*rules {
+            if !rule.name.is_null() {
+                let _ = unsafe { CString::from_raw(rule.name) };
+            }
+        }
     }
 }
 
@@ -414,6 +484,38 @@ fn lottery_game_query_range_to_c(
     Box::new(LotteryGameQueryRangeC {
         min_month: string_to_c_ptr(range.min_month),
         max_month: string_to_c_ptr(range.max_month),
+    })
+}
+
+fn lottery_game_number_rule_to_c(rule: crate::LotteryGameNumberRule) -> LotteryGameNumberRuleC {
+    LotteryGameNumberRuleC {
+        name: string_to_c_ptr(rule.name.to_string()),
+        picks: rule.picks,
+        min: rule.min,
+        max: rule.max,
+        allow_repeat: i32::from(rule.allow_repeat),
+    }
+}
+
+fn lottery_game_metadata_to_c(metadata: crate::LotteryGameMetadata) -> Box<LotteryGameMetadataC> {
+    let mut rules = Vec::with_capacity(metadata.number_ranges.len());
+    for rule in metadata.number_ranges {
+        rules.push(lottery_game_number_rule_to_c(*rule));
+    }
+
+    let number_range_count = rules.len();
+    let boxed_rules = rules.into_boxed_slice();
+    let number_ranges = if number_range_count == 0 {
+        std::ptr::null_mut()
+    } else {
+        Box::into_raw(boxed_rules) as *mut LotteryGameNumberRuleC
+    };
+
+    Box::new(LotteryGameMetadataC {
+        display_name: string_to_c_ptr(metadata.display_name.to_string()),
+        number_rule: string_to_c_ptr(metadata.number_rule.to_string()),
+        number_range_count,
+        number_ranges,
     })
 }
 
