@@ -32,6 +32,7 @@ extern "C" {
 #define TAIWAN_LOTTERY_HISTORY_GAME_740 9
 #define TAIWAN_LOTTERY_HISTORY_GAME_TIC_TAC_TOE 10
 #define TAIWAN_LOTTERY_HISTORY_GAME_638 11
+#define TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO 12
 
 typedef struct taiwan_lottery_history_draw_item {
 	char* period;

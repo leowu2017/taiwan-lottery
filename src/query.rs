@@ -2,6 +2,9 @@ use std::path::Path;
 
 use crate::{DownloadError, HistoryDrawPage, HistoryDrawQuery, LotteryGame};
 
+pub(crate) mod local;
+pub(crate) mod remote;
+
 /// Query historical lottery draw results from locally downloaded data.
 ///
 /// Reads history draw data that was previously downloaded by [`crate::download_history_draw`]
@@ -33,7 +36,7 @@ pub fn query_history_draw(
     game: LotteryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
-    crate::query_history_draw_impl(output_dir, game, query)
+    local::query_history_draw_from_downloaded_data(output_dir.as_ref(), game, &query)
 }
 
 /// Query historical lottery draw results directly from Taiwan Lottery API.
@@ -62,5 +65,5 @@ pub fn query_history_draw_from_taiwan_lottery(
     game: LotteryGame,
     query: HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
-    crate::query_history_draw_from_taiwan_lottery_impl(game, query)
+    remote::query_history_draw_from_taiwan_lottery(game, &query)
 }

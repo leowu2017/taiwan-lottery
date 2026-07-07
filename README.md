@@ -190,6 +190,7 @@ Query range validation:
 - Fifth term: starts at `2024-01`; active games are limited to current UTC month (never future month).
 - Per-game supported range:
   - `SuperLotto638`, `Lotto649`, `Daily539`, `Lotto39M5`, `Lotto49M6`, `Lotto3D`, `Lotto4D`: `2007-01` to current month.
+  - `BingoBingo`: `2024-01` to current month.
   - `Lotto38M6`: `2007-01` to `2023-12`.
   - `Lotto1224`, `Lotto740`: `2014-01` to `2023-12`.
   - `TicTacToe`, `Lotto638`: `2007-01` to `2013-12`.

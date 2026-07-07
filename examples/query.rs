@@ -12,7 +12,7 @@ fn print_usage(program: &str) {
     eprintln!("  {program} remote <game> period <PERIOD>");
     eprintln!("  {program} remote <game> month <YYYY-MM>");
     eprintln!("  {program} remote <game> month-range <YYYY-MM> <YYYY-MM>");
-    eprintln!("  game: super-lotto638 | lotto649 | daily539 | 3d | 4d | 49m6 | 39m5 | 38m6 | 1224 | 740 | tic-tac-toe | 638");
+    eprintln!("  game: super-lotto638 | lotto649 | daily539 | 3d | 4d | 49m6 | 39m5 | 38m6 | 1224 | 740 | tic-tac-toe | 638 | bingo-bingo");
 }
 
 fn default_output_dir() -> PathBuf {
@@ -23,13 +23,15 @@ fn parse_game(value: &str) -> Option<LotteryGame> {
     LotteryGame::parse(value)
 }
 
-
 fn parse_query(mode: &str, args: &[String], value_index: usize) -> Option<HistoryDrawQuery> {
     let value = args.get(value_index)?.clone();
     let query = match mode {
         "period" => HistoryDrawQuery::by_period(value),
         "month-range" => {
-            let end_month = args.get(value_index + 1).cloned().unwrap_or_else(|| value.clone());
+            let end_month = args
+                .get(value_index + 1)
+                .cloned()
+                .unwrap_or_else(|| value.clone());
             HistoryDrawQuery::by_month_range(value, end_month)
         }
         _ => HistoryDrawQuery::by_month(value),

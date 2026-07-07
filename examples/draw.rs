@@ -1,13 +1,13 @@
-use taiwan_lottery::{LotteryGame, draw_by_game};
+use taiwan_lottery::{draw_by_game, LotteryGame};
 
 fn print_usage(program: &str) {
     eprintln!("Usage:");
     eprintln!("  {program} <game>");
     eprintln!("  {program} <game> <count>");
-    eprintln!("");
+    eprintln!();
     eprintln!(
-        "game: super-lotto638 | lotto649 | daily539 | 3d | 4d | 49m6 | 39m5 | 38m6 | 1224 | 740 | tic-tac-toe | 638"
-    );
+            "game: super-lotto638 | lotto649 | daily539 | 3d | 4d | 49m6 | 39m5 | 38m6 | 1224 | 740 | tic-tac-toe | 638 | bingo-bingo"
+        );
     eprintln!("count: number of times to draw (default: 1)");
 }
 
