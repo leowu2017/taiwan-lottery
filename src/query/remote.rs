@@ -629,6 +629,7 @@ pub(crate) fn query_history_draw_from_taiwan_lottery(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::HistoryDrawQuery;
 
     #[test]
     fn days_in_month_handles_leap_and_common_years() {
@@ -654,5 +655,110 @@ mod tests {
         let page = parse_history_draw_page(&sample).expect("must parse empty remote page");
         assert_eq!(page.total_size, 0);
         assert!(page.items.is_empty());
+    }
+
+    #[test]
+    fn parse_history_draw_page_extracts_both_draw_orders() {
+        let sample = serde_json::json!({
+            "totalSize": 1,
+            "lotto649Res": [
+                {
+                    "period": 112000116,
+                    "lotteryDate": "2023-12-29T00:00:00",
+                    "redeemableDate": "2024-04-01T00:00:00",
+                    "drawNumberSize": [1, 11, 23, 31, 39, 46, 17],
+                    "drawNumberAppear": [31, 46, 11, 39, 23, 1, 17]
+                }
+            ]
+        });
+
+        let page = parse_history_draw_page(&sample).expect("parse history draw page");
+        assert_eq!(page.total_size, 1);
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].period, "112000116");
+        assert_eq!(
+            page.items[0].numbers.base.numbers,
+            vec![31, 46, 11, 39, 23, 1, 17]
+        );
+        assert_eq!(
+            page.items[0].numbers.sorted,
+            Some(vec![1, 11, 23, 31, 39, 46, 17])
+        );
+    }
+
+    #[test]
+    fn validate_query_range_rejects_out_of_term_month_for_lotto_1224() {
+        let query = HistoryDrawQuery::by_month("2013-12");
+        let err = validate_query_range_for_game(LotteryGame::Lotto1224, &query)
+            .expect_err("1224 should not allow third-term month");
+        assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn validate_query_range_rejects_out_of_term_month_for_tic_tac_toe() {
+        let query = HistoryDrawQuery::by_month("2014-01");
+        let err = validate_query_range_for_game(LotteryGame::TicTacToe, &query)
+            .expect_err("tic-tac-toe should not allow fourth-term month");
+        assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn validate_query_range_rejects_out_of_term_period_for_lotto_740() {
+        let query = HistoryDrawQuery::by_period("113000001");
+        let err = validate_query_range_for_game(LotteryGame::Lotto740, &query)
+            .expect_err("740 should not allow fifth-term period");
+        assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn validate_query_range_accepts_third_to_fourth_overlap_game() {
+        let query = HistoryDrawQuery::by_month("2023-12");
+        validate_query_range_for_game(LotteryGame::Lotto38M6, &query)
+            .expect("38M6 should allow fourth-term month");
+    }
+
+    #[test]
+    fn validate_query_range_rejects_future_month_for_fifth_active_game() {
+        let now = current_utc_year_month();
+        let (future_year, future_month) = if now.month == 12 {
+            (now.year + 1, 1)
+        } else {
+            (now.year, now.month + 1)
+        };
+        let query = HistoryDrawQuery::by_month(format!("{future_year:04}-{future_month:02}"));
+        let err = validate_query_range_for_game(LotteryGame::Lotto649, &query)
+            .expect_err("lotto649 should not allow future month");
+        assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn lottery_game_query_month_range_caps_active_game_to_current_month() {
+        let (start, end) = game_query_month_bounds(LotteryGame::Lotto649);
+        let now = current_utc_year_month();
+        assert_eq!(start.to_yyyy_mm(), "2007-01");
+        assert_eq!(end.to_yyyy_mm(), format!("{:04}-{:02}", now.year, now.month));
+    }
+
+    #[test]
+    fn lottery_game_query_month_range_for_bingo_bingo_uses_2024_start() {
+        let (start, end) = game_query_month_bounds(LotteryGame::BingoBingo);
+        let now = current_utc_year_month();
+        assert_eq!(start.to_yyyy_mm(), "2024-01");
+        assert_eq!(end.to_yyyy_mm(), format!("{:04}-{:02}", now.year, now.month));
+    }
+
+    #[test]
+    fn remote_query_param_support_matches_empirical_behavior() {
+        let non_bingo = remote_query_param_support(LotteryGame::Lotto649);
+        assert!(non_bingo.month);
+        assert!(non_bingo.end_month);
+        assert!(!non_bingo.open_date);
+        assert!(non_bingo.period);
+
+        let bingo = remote_query_param_support(LotteryGame::BingoBingo);
+        assert!(!bingo.month);
+        assert!(!bingo.end_month);
+        assert!(bingo.open_date);
+        assert!(!bingo.period);
     }
 }

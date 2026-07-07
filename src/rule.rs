@@ -272,3 +272,38 @@ pub(crate) const fn metadata_for_game(game: LotteryGame) -> LotteryGameMetadata 
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::LotteryDisplayLanguage;
+
+    #[test]
+    fn metadata_for_game_exposes_ui_fields() {
+        let metadata = metadata_for_game(LotteryGame::Lotto649);
+        assert_eq!(metadata.display_name, "Lotto 649");
+        assert_eq!(metadata.display_name_english, "Lotto 649");
+        assert_eq!(metadata.display_name_chinese, "大樂透");
+        assert_eq!(
+            metadata.number_rule,
+            "6 numbers from 1-49, plus 1 bonus number from 1-49"
+        );
+        assert_eq!(metadata.number_ranges.len(), 2);
+        assert_eq!(metadata.number_ranges[0].name, "main");
+        assert_eq!(metadata.number_ranges[0].picks, 6);
+        assert_eq!(metadata.number_ranges[0].min, 1);
+        assert_eq!(metadata.number_ranges[0].max, 49);
+        assert!(!metadata.number_ranges[0].allow_repeat);
+    }
+
+    #[test]
+    fn metadata_supports_display_language_selection() {
+        let default_metadata =
+            metadata_for_game(LotteryGame::Lotto649).with_display_language(LotteryDisplayLanguage::English);
+        assert_eq!(default_metadata.display_name, "Lotto 649");
+
+        let chinese_metadata =
+            metadata_for_game(LotteryGame::Lotto649).with_display_language(LotteryDisplayLanguage::Chinese);
+        assert_eq!(chinese_metadata.display_name, "大樂透");
+    }
+}
+

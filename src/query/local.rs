@@ -224,6 +224,8 @@ pub(crate) fn query_history_draw_from_downloaded_data(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query_history_draw;
+    use std::fs;
 
     #[test]
     fn parse_date_month_supports_dash_and_slash() {
@@ -242,5 +244,89 @@ mod tests {
             history_game_file_prefixes(LotteryGame::BingoBingo),
             &["賓果賓果_"]
         );
+    }
+
+    #[test]
+    fn local_3d_history_draw_uses_numbers_draw() {
+        let root = std::env::temp_dir().join(format!(
+            "taiwan-lottery-history-local-3d-test-{}",
+            std::process::id()
+        ));
+        if root.exists() {
+            fs::remove_dir_all(&root).expect("cleanup old temp dir");
+        }
+
+        let game_dir = root.join("D423F").join("2022");
+        fs::create_dir_all(&game_dir).expect("create game dir");
+        let file = game_dir.join("3星彩_2022.csv");
+        fs::write(
+            &file,
+            "遊戲名稱,期別,開獎日期,獎號1,獎號2,獎號3
+3星彩,111000155,2022/06/30,5,9,3
+",
+        )
+        .expect("write csv");
+
+        let query = HistoryDrawQuery::by_period("111000155");
+        let page = query_history_draw(&root, LotteryGame::Lotto3D, query).expect("query local 3d data");
+        assert_eq!(page.total_size, 1);
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].numbers.base.numbers, vec![5, 9, 3]);
+        assert_eq!(page.items[0].numbers.sorted, None);
+
+        fs::remove_dir_all(&root).expect("cleanup temp dir");
+    }
+
+    #[test]
+    fn lotto38m6_does_not_include_lotto649_addon_prefix() {
+        let prefixes = history_game_file_prefixes(LotteryGame::Lotto38M6);
+        assert!(prefixes.contains(&"38樂合彩_"));
+        assert!(!prefixes.contains(&"大樂透加開獎項_"));
+    }
+
+    #[test]
+    fn lotto3d_and_4d_use_numeric_prefixes_only() {
+        let p3d = history_game_file_prefixes(LotteryGame::Lotto3D);
+        let p4d = history_game_file_prefixes(LotteryGame::Lotto4D);
+        assert_eq!(p3d, &["3星彩_"]);
+        assert_eq!(p4d, &["4星彩_"]);
+    }
+
+    #[test]
+    fn bingo_family_uses_strict_prefixes() {
+        assert_eq!(history_game_file_prefixes(LotteryGame::Lotto1224), &["雙贏彩_"]);
+        assert_eq!(history_game_file_prefixes(LotteryGame::Lotto740), &["大福彩_"]);
+        assert_eq!(history_game_file_prefixes(LotteryGame::TicTacToe), &["樂線九宮格_"]);
+        assert_eq!(history_game_file_prefixes(LotteryGame::Lotto638), &["6_38樂透彩_"]);
+        assert_eq!(history_game_file_prefixes(LotteryGame::BingoBingo), &["賓果賓果_"]);
+    }
+
+    #[test]
+    fn get_history_draw_reads_downloaded_csv_data() {
+        let root = std::env::temp_dir().join(format!(
+            "taiwan-lottery-history-local-test-{}",
+            std::process::id()
+        ));
+        if root.exists() {
+            fs::remove_dir_all(&root).expect("cleanup old temp dir");
+        }
+
+        let game_dir = root.join("D423F").join("2026");
+        fs::create_dir_all(&game_dir).expect("create game dir");
+        let file = game_dir.join("大樂透_2026.csv");
+        fs::write(
+            &file,
+            "遊戲名稱,期別,開獎日期,獎號1,獎號2,獎號3,獎號4,獎號5,獎號6,特別號\n大樂透,115000001,2026/01/02,3,7,16,19,40,42,12\n",
+        )
+        .expect("write csv");
+
+        let query = HistoryDrawQuery::by_period("115000001");
+        let page = query_history_draw(&root, LotteryGame::Lotto649, query).expect("query local data");
+        assert_eq!(page.total_size, 1);
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].numbers.base.numbers, vec![3, 7, 16, 19, 40, 42, 12]);
+        assert_eq!(page.items[0].numbers.sorted, Some(vec![3, 7, 16, 19, 40, 42, 12]));
+
+        fs::remove_dir_all(&root).expect("cleanup temp dir");
     }
 }
