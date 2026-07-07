@@ -84,6 +84,14 @@ pub struct LotteryGameMetadataC {
     number_ranges: *mut LotteryGameNumberRuleC,
 }
 
+#[repr(C)]
+pub struct RemoteQueryParamSupportC {
+    month: i32,
+    end_month: i32,
+    open_date: i32,
+    period: i32,
+}
+
 pub type DrawResultC = BonusDrawNumbersC;
 
 #[unsafe(export_name = "download_api_doc")]
@@ -303,6 +311,33 @@ pub extern "C" fn lottery_game_metadata_with_language_ffi(
     let c_metadata = lottery_game_metadata_to_c(metadata);
     unsafe {
         *out_metadata = Box::into_raw(c_metadata);
+    }
+
+    DownloadStatus::Success as i32
+}
+
+#[unsafe(export_name = "lottery_game_remote_query_param_support")]
+pub extern "C" fn lottery_game_remote_query_param_support_ffi(
+    game: i32,
+    out_support: *mut RemoteQueryParamSupportC,
+) -> i32 {
+    let game = match int_to_lottery_game(game) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    if out_support.is_null() {
+        return DownloadStatus::NullResultPointer as i32;
+    }
+
+    let support = game.remote_query_param_support();
+    unsafe {
+        *out_support = RemoteQueryParamSupportC {
+            month: i32::from(support.month),
+            end_month: i32::from(support.end_month),
+            open_date: i32::from(support.open_date),
+            period: i32::from(support.period),
+        };
     }
 
     DownloadStatus::Success as i32

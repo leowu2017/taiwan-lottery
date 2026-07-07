@@ -137,6 +137,82 @@ Public format that may look similar to other games but should be treated careful
 
 ---
 
+## Empirical Validation (Public API Calls)
+
+Validation date:
+
+- 2026-07-08
+
+Validation scope:
+
+- Called the public URLs directly via HTTPS (no project-internal logic used).
+- Every game endpoint was tested with all four query shapes:
+  - `month`
+  - `month + endMonth`
+  - `openDate`
+  - `period`
+- For each game, sampled `month`/`period` values were selected from remote API windows that returned data in live calls.
+
+### Per-Game Remote Validation Windows
+
+| Game | Validation month window used for remote calls |
+|---|---|
+| SuperLotto638 | 2007-01 to current UTC month (capped at 2033-12) |
+| Lotto649 | 2007-01 to current UTC month (capped at 2033-12) |
+| Daily539 | 2007-01 to current UTC month (capped at 2033-12) |
+| 3D | 2007-01 to current UTC month (capped at 2033-12) |
+| 4D | 2007-01 to current UTC month (capped at 2033-12) |
+| 49M6 | 2007-01 to current UTC month (capped at 2033-12) |
+| 39M5 | 2007-01 to current UTC month (capped at 2033-12) |
+| 38M6 | 2007-01 to 2023-12 |
+| 1224 | 2014-01 to 2023-12 |
+| 740 | 2014-01 to 2023-12 |
+| TicTacToe | 2007-01 to 2013-12 |
+| 638 | 2007-01 to 2013-12 |
+| BingoBingo | 2024-01 to current UTC month (capped at 2033-12) |
+
+### All-Game Matrix (Same 4 Query Shapes)
+
+Rule used in this matrix:
+
+- `OK` means sampled request returned non-empty result data.
+- `FAIL` means sampled request returned empty result data, even when `HTTP 200` and `rtCode=0`.
+
+Sample selection rule:
+
+- For each game, use a month inside the validation window that returned non-empty data to derive sampled `month` and `period` values.
+- For `openDate`, use the sampled draw date from that game when available.
+
+| Game | Endpoint | month | month+endMonth | openDate | period |
+|---|---|---|---|---|---|
+| SuperLotto638 | `SuperLotto638Result` | OK | OK | FAIL | OK |
+| Lotto649 | `Lotto649Result` | OK | OK | FAIL | OK |
+| Daily539 | `Daily539Result` | OK | OK | FAIL | OK |
+| 3D | `3DResult` | OK | OK | FAIL | OK |
+| 4D | `4DResult` | OK | OK | FAIL | OK |
+| 49M6 | `49M6Result` | OK | OK | FAIL | OK |
+| 39M5 | `39M5Result` | OK | OK | FAIL | OK |
+| 38M6 | `38M6Result` | OK | OK | FAIL | OK |
+| 1224 | `Lotto1224Result` | OK | OK | FAIL | OK |
+| 740 | `Lotto740Result` | OK | OK | FAIL | OK |
+| TicTacToe | `TicTacToeResult` | OK | OK | FAIL | OK |
+| 638 | `Lotto638Result` | OK | OK | FAIL | OK |
+| BingoBingo | `BingoResult` | FAIL | FAIL | OK | FAIL |
+
+### Summary (Bingo vs Non-Bingo)
+
+Non-Bingo summary:
+
+- Using in-range sampled months/periods, all non-Bingo endpoints returned data for `month`, `month+endMonth`, and `period`.
+- In sampled checks, `openDate` did not produce data for non-Bingo endpoints.
+
+Bingo summary:
+
+- `BingoResult` with `openDate` returned sampled data (`OK`).
+- `BingoResult` with `month`, `month+endMonth`, or `period` returned empty sampled data (`FAIL`).
+
+---
+
 ## Summary Table
 
 | Resource | Public page or API | URL / format | Notes |

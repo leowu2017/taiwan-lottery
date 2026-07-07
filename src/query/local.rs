@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::rule::validate_query_range_for_game;
+use crate::query::remote::validate_query_range_for_game;
 use crate::{
     DownloadError, HistoryDrawItem, HistoryDrawPage, HistoryDrawQuery, LotteryGame,
     SortedDrawNumbers,

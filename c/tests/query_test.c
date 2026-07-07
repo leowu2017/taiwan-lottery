@@ -187,6 +187,34 @@ static void test_game_metadata_invalid_game_returns_error(void) {
     assert(metadata == NULL);
 }
 
+static void test_remote_query_param_support_non_bingo(void) {
+    taiwan_lottery_remote_query_param_support support = {0};
+    int status = lottery_game_remote_query_param_support(
+        TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
+        &support
+    );
+
+    assert(status == TAIWAN_LOTTERY_OK);
+    assert(support.month != 0);
+    assert(support.end_month != 0);
+    assert(support.open_date == 0);
+    assert(support.period != 0);
+}
+
+static void test_remote_query_param_support_bingo(void) {
+    taiwan_lottery_remote_query_param_support support = {0};
+    int status = lottery_game_remote_query_param_support(
+        TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO,
+        &support
+    );
+
+    assert(status == TAIWAN_LOTTERY_OK);
+    assert(support.month == 0);
+    assert(support.end_month == 0);
+    assert(support.open_date != 0);
+    assert(support.period == 0);
+}
+
 int main(void) {
     test_lotto649_local_query();
     test_3d_local_query();
@@ -199,5 +227,7 @@ int main(void) {
     test_game_metadata_with_language_returns_chinese_display_name();
     test_game_metadata_with_language_rejects_invalid_language();
     test_game_metadata_invalid_game_returns_error();
+    test_remote_query_param_support_non_bingo();
+    test_remote_query_param_support_bingo();
     return 0;
 }

@@ -94,6 +94,17 @@ typedef struct taiwan_lottery_game_metadata {
 	taiwan_lottery_game_number_rule* number_ranges;
 } taiwan_lottery_game_metadata;
 
+typedef struct taiwan_lottery_remote_query_param_support {
+	/* Non-zero when month is supported. */
+	int32_t month;
+	/* Non-zero when end_month is supported. */
+	int32_t end_month;
+	/* Non-zero when openDate is supported. */
+	int32_t open_date;
+	/* Non-zero when period is supported. */
+	int32_t period;
+} taiwan_lottery_remote_query_param_support;
+
 /* Query history draw data from downloaded local files under output_dir/D423F. */
 int query_history_draw(
 	const char* output_dir,
@@ -130,6 +141,11 @@ int lottery_game_metadata_with_language(
 	int game,
 	int language,
 	taiwan_lottery_game_metadata** out_metadata);
+
+/* Get per-game remote query parameter support flags. */
+int lottery_game_remote_query_param_support(
+	int game,
+	taiwan_lottery_remote_query_param_support* out_support);
 
 /* Release memory returned by query_history_draw or query_history_draw_from_taiwan_lottery. */
 void free_history_draw_page(taiwan_lottery_history_draw_page* page);
