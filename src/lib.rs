@@ -118,12 +118,40 @@ pub struct LotteryGameNumberRule {
 /// Static metadata for rendering lottery game information in UI layers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LotteryGameMetadata {
-    /// UI display name for the game.
+    /// UI display name for the game. Defaults to English.
     pub display_name: &'static str,
+    /// English display name for the game.
+    pub display_name_english: &'static str,
+    /// Chinese display name for the game.
+    pub display_name_chinese: &'static str,
     /// Human-readable summary of the game's number-selection rule.
     pub number_rule: &'static str,
     /// Rule segments that together define how numbers are selected.
     pub number_ranges: &'static [LotteryGameNumberRule],
+}
+
+/// Supported display-name languages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LotteryDisplayLanguage {
+    #[default]
+    English,
+    Chinese,
+}
+
+impl LotteryGameMetadata {
+    /// Resolves a display name by enum language.
+    pub const fn display_name_for_language(self, language: LotteryDisplayLanguage) -> &'static str {
+        match language {
+            LotteryDisplayLanguage::English => self.display_name_english,
+            LotteryDisplayLanguage::Chinese => self.display_name_chinese,
+        }
+    }
+
+    /// Returns metadata with `display_name` localized by input language.
+    pub fn with_display_language(mut self, language: LotteryDisplayLanguage) -> Self {
+        self.display_name = self.display_name_for_language(language);
+        self
+    }
 }
 
 /// Queryable month range for a game in `YYYY-MM` format.
@@ -165,6 +193,11 @@ impl LotteryGame {
     /// Returns static metadata describing display name and number-selection rules.
     pub const fn metadata(self) -> LotteryGameMetadata {
         metadata_for_game(self)
+    }
+
+    /// Returns metadata with `display_name` chosen by enum language.
+    pub fn metadata_with_language(self, language: LotteryDisplayLanguage) -> LotteryGameMetadata {
+        self.metadata().with_display_language(language)
     }
 
     /// Returns the allowed query month range for this game in `YYYY-MM` format.
@@ -1229,7 +1262,9 @@ mod tests {
     #[test]
     fn history_game_metadata_exposes_ui_fields() {
         let metadata = LotteryGame::Lotto649.metadata();
-        assert_eq!(metadata.display_name, "大樂透");
+        assert_eq!(metadata.display_name, "Lotto 649");
+        assert_eq!(metadata.display_name_english, "Lotto 649");
+        assert_eq!(metadata.display_name_chinese, "大樂透");
         assert_eq!(
             metadata.number_rule,
             "6 numbers from 1-49, plus 1 bonus number from 1-49"
@@ -1240,6 +1275,17 @@ mod tests {
         assert_eq!(metadata.number_ranges[0].min, 1);
         assert_eq!(metadata.number_ranges[0].max, 49);
         assert!(!metadata.number_ranges[0].allow_repeat);
+    }
+
+    #[test]
+    fn history_game_metadata_supports_language_input() {
+        let default_metadata =
+            LotteryGame::Lotto649.metadata_with_language(LotteryDisplayLanguage::English);
+        assert_eq!(default_metadata.display_name, "Lotto 649");
+
+        let chinese_metadata =
+            LotteryGame::Lotto649.metadata_with_language(LotteryDisplayLanguage::Chinese);
+        assert_eq!(chinese_metadata.display_name, "大樂透");
     }
 
     #[test]

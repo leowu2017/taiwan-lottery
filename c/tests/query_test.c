@@ -114,8 +114,13 @@ static void test_game_metadata_exposes_number_rules(void) {
     assert(status == TAIWAN_LOTTERY_OK);
     assert(metadata != NULL);
     assert(metadata->display_name != NULL);
+    assert(metadata->display_name_english != NULL);
+    assert(metadata->display_name_chinese != NULL);
     assert(metadata->number_rule != NULL);
-    assert(strcmp(metadata->display_name, "大樂透") == 0);
+    assert(strcmp(metadata->display_name, "Lotto 649") == 0);
+    assert(strcmp(metadata->display_name_english, "Lotto 649") == 0);
+    assert(strlen(metadata->display_name_chinese) > 0);
+    assert(strcmp(metadata->display_name_chinese, metadata->display_name_english) != 0);
     assert(strcmp(metadata->number_rule, "6 numbers from 1-49, plus 1 bonus number from 1-49") == 0);
     assert(metadata->number_range_count == 2);
     assert(metadata->number_ranges != NULL);
@@ -144,6 +149,36 @@ static void test_game_metadata_for_bingo_bingo_exposes_super_rule(void) {
     free_lottery_game_metadata(metadata);
 }
 
+static void test_game_metadata_with_language_returns_chinese_display_name(void) {
+    taiwan_lottery_game_metadata *metadata = NULL;
+    int status = lottery_game_metadata_with_language(
+        TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
+        TAIWAN_LOTTERY_DISPLAY_LANGUAGE_CHINESE,
+        &metadata
+    );
+
+    assert(status == TAIWAN_LOTTERY_OK);
+    assert(metadata != NULL);
+    assert(strlen(metadata->display_name) > 0);
+    assert(strcmp(metadata->display_name, metadata->display_name_chinese) == 0);
+    assert(strcmp(metadata->display_name, metadata->display_name_english) != 0);
+    assert(strcmp(metadata->display_name_english, "Lotto 649") == 0);
+
+    free_lottery_game_metadata(metadata);
+}
+
+static void test_game_metadata_with_language_rejects_invalid_language(void) {
+    taiwan_lottery_game_metadata *metadata = NULL;
+    int status = lottery_game_metadata_with_language(
+        TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
+        999,
+        &metadata
+    );
+
+    assert(status == TAIWAN_LOTTERY_INVALID_LANGUAGE);
+    assert(metadata == NULL);
+}
+
 static void test_game_metadata_invalid_game_returns_error(void) {
     taiwan_lottery_game_metadata *metadata = NULL;
     int status = lottery_game_metadata(999, &metadata);
@@ -161,6 +196,8 @@ int main(void) {
     test_query_month_range_invalid_game_returns_error();
     test_game_metadata_exposes_number_rules();
     test_game_metadata_for_bingo_bingo_exposes_super_rule();
+    test_game_metadata_with_language_returns_chinese_display_name();
+    test_game_metadata_with_language_rejects_invalid_language();
     test_game_metadata_invalid_game_returns_error();
     return 0;
 }
