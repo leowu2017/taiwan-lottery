@@ -55,7 +55,9 @@ pub fn parse_codes_from_api_docs(api_docs_json: &str) -> Result<Vec<String>, Dow
     Ok(codes)
 }
 
-pub(crate) fn parse_download_links_from_csv(csv_bytes: &[u8]) -> Result<Vec<String>, DownloadError> {
+pub(crate) fn parse_download_links_from_csv(
+    csv_bytes: &[u8],
+) -> Result<Vec<String>, DownloadError> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .from_reader(csv_bytes);
@@ -293,7 +295,10 @@ pub(crate) fn normalize_zip_entry_path(entry_name: &str) -> Option<PathBuf> {
     }
 }
 
-pub(crate) fn extract_zip_bytes(zip_bytes: &[u8], extract_dir: &Path) -> Result<Vec<PathBuf>, DownloadError> {
+pub(crate) fn extract_zip_bytes(
+    zip_bytes: &[u8],
+    extract_dir: &Path,
+) -> Result<Vec<PathBuf>, DownloadError> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip_bytes))?;
     fs::create_dir_all(extract_dir)?;
 
@@ -648,7 +653,9 @@ pub fn download_history_draw_from_taiwan_lottery(
 pub fn download_history_draw(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
     match download_history_draw_from_gov_data(output_dir.as_ref()) {
         Ok(files) => Ok(files),
-        Err(DownloadError::Http(_)) => download_history_draw_from_taiwan_lottery(output_dir.as_ref()),
+        Err(DownloadError::Http(_)) => {
+            download_history_draw_from_taiwan_lottery(output_dir.as_ref())
+        }
         Err(err) => Err(err),
     }
 }
