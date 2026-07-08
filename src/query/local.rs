@@ -268,7 +268,8 @@ mod tests {
         .expect("write csv");
 
         let query = HistoryDrawQuery::by_period("111000155");
-        let page = query_history_draw(&root, LotteryGame::Lotto3D, query).expect("query local 3d data");
+        let page =
+            query_history_draw(&root, LotteryGame::Lotto3D, query).expect("query local 3d data");
         assert_eq!(page.total_size, 1);
         assert_eq!(page.items.len(), 1);
         assert_eq!(page.items[0].numbers.base.numbers, vec![5, 9, 3]);
@@ -294,11 +295,26 @@ mod tests {
 
     #[test]
     fn bingo_family_uses_strict_prefixes() {
-        assert_eq!(history_game_file_prefixes(LotteryGame::Lotto1224), &["雙贏彩_"]);
-        assert_eq!(history_game_file_prefixes(LotteryGame::Lotto740), &["大福彩_"]);
-        assert_eq!(history_game_file_prefixes(LotteryGame::TicTacToe), &["樂線九宮格_"]);
-        assert_eq!(history_game_file_prefixes(LotteryGame::Lotto638), &["6_38樂透彩_"]);
-        assert_eq!(history_game_file_prefixes(LotteryGame::BingoBingo), &["賓果賓果_"]);
+        assert_eq!(
+            history_game_file_prefixes(LotteryGame::Lotto1224),
+            &["雙贏彩_"]
+        );
+        assert_eq!(
+            history_game_file_prefixes(LotteryGame::Lotto740),
+            &["大福彩_"]
+        );
+        assert_eq!(
+            history_game_file_prefixes(LotteryGame::TicTacToe),
+            &["樂線九宮格_"]
+        );
+        assert_eq!(
+            history_game_file_prefixes(LotteryGame::Lotto638),
+            &["6_38樂透彩_"]
+        );
+        assert_eq!(
+            history_game_file_prefixes(LotteryGame::BingoBingo),
+            &["賓果賓果_"]
+        );
     }
 
     #[test]
@@ -321,11 +337,18 @@ mod tests {
         .expect("write csv");
 
         let query = HistoryDrawQuery::by_period("115000001");
-        let page = query_history_draw(&root, LotteryGame::Lotto649, query).expect("query local data");
+        let page =
+            query_history_draw(&root, LotteryGame::Lotto649, query).expect("query local data");
         assert_eq!(page.total_size, 1);
         assert_eq!(page.items.len(), 1);
-        assert_eq!(page.items[0].numbers.base.numbers, vec![3, 7, 16, 19, 40, 42, 12]);
-        assert_eq!(page.items[0].numbers.sorted, Some(vec![3, 7, 16, 19, 40, 42, 12]));
+        assert_eq!(
+            page.items[0].numbers.base.numbers,
+            vec![3, 7, 16, 19, 40, 42, 12]
+        );
+        assert_eq!(
+            page.items[0].numbers.sorted,
+            Some(vec![3, 7, 16, 19, 40, 42, 12])
+        );
 
         fs::remove_dir_all(&root).expect("cleanup temp dir");
     }

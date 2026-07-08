@@ -38,7 +38,6 @@
 //! let result = draw_by_game(LotteryGame::Lotto649);
 //! ```
 
-
 mod download;
 mod draw;
 mod errors;
@@ -51,8 +50,7 @@ use query::remote::{game_query_month_bounds, remote_query_param_support};
 use rule::metadata_for_game;
 
 pub use download::{
-    build_csv_url,
-    download_all, download_api_doc, download_dataset, download_history_draw,
+    build_csv_url, download_all, download_api_doc, download_dataset, download_history_draw,
     download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
     parse_codes_from_api_docs,
 };
@@ -65,7 +63,6 @@ pub use numbers::{
     TicTacToeNumbers,
 };
 pub use query::{query_history_draw, query_history_draw_from_taiwan_lottery};
-
 
 /// Supported lottery games for historical draw queries and random draws.
 ///
@@ -305,11 +302,13 @@ impl TryFrom<i32> for LotteryGame {
 /// - [`by_period`](HistoryDrawQuery::by_period) - Query by a specific period
 /// - [`by_month`](HistoryDrawQuery::by_month) - Query a single month
 /// - [`by_month_range`](HistoryDrawQuery::by_month_range) - Query a date range
+/// - [`by_open_date`](HistoryDrawQuery::by_open_date) - Query by a specific open date (Bingo)
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct HistoryDrawQuery {
     pub period: Option<String>,
     pub month: Option<String>,
     pub end_month: Option<String>,
+    pub open_date: Option<String>,
 }
 
 impl HistoryDrawQuery {
@@ -333,6 +332,13 @@ impl HistoryDrawQuery {
         Self {
             month: Some(month.into()),
             end_month: Some(end_month.into()),
+            ..Self::default()
+        }
+    }
+
+    pub fn by_open_date(open_date: impl Into<String>) -> Self {
+        Self {
+            open_date: Some(open_date.into()),
             ..Self::default()
         }
     }
@@ -457,5 +463,4 @@ mod tests {
             assert!(LotteryGame::ALL.contains(&LotteryGame::BingoBingo));
         }
     }
-
 }

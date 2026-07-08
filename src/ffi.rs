@@ -516,6 +516,7 @@ fn build_history_draw_query(
         period,
         month,
         end_month,
+        open_date: None,
     })
 }
 

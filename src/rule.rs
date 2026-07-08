@@ -1,6 +1,4 @@
-use crate::{
-    LotteryGame, LotteryGameMetadata, LotteryGameNumberRule,
-};
+use crate::{LotteryGame, LotteryGameMetadata, LotteryGameNumberRule};
 
 const SUPER_LOTTO_638_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
     LotteryGameNumberRule {
@@ -297,13 +295,12 @@ mod tests {
 
     #[test]
     fn metadata_supports_display_language_selection() {
-        let default_metadata =
-            metadata_for_game(LotteryGame::Lotto649).with_display_language(LotteryDisplayLanguage::English);
+        let default_metadata = metadata_for_game(LotteryGame::Lotto649)
+            .with_display_language(LotteryDisplayLanguage::English);
         assert_eq!(default_metadata.display_name, "Lotto 649");
 
-        let chinese_metadata =
-            metadata_for_game(LotteryGame::Lotto649).with_display_language(LotteryDisplayLanguage::Chinese);
+        let chinese_metadata = metadata_for_game(LotteryGame::Lotto649)
+            .with_display_language(LotteryDisplayLanguage::Chinese);
         assert_eq!(chinese_metadata.display_name, "大樂透");
     }
 }
-

@@ -2,8 +2,7 @@ use std::collections::HashSet;
 
 use crate::{
     DownloadError, HistoryDrawItem, HistoryDrawPage, HistoryDrawQuery, LotteryGame,
-    RemoteQueryParamSupport,
-    SortedDrawNumbers,
+    RemoteQueryParamSupport, SortedDrawNumbers,
 };
 
 const TAIWAN_LOTTERY_API_BASE_URL: &str = "https://api.taiwanlottery.com/TLCAPIWeB";
@@ -37,7 +36,7 @@ const BINGO_BINGO_START_YEAR: i32 = 2024;
 //
 // Practical interpretation:
 // - Non-Bingo endpoints are data-positive for month/month+endMonth/period.
-// - Bingo endpoint is data-positive for openDate.
+// - Bingo endpoint should be queried with openDate or period.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct YearMonth {
@@ -87,9 +86,7 @@ pub(crate) fn current_utc_year_month() -> YearMonth {
 fn parse_period_year(period: &str) -> Result<i32, DownloadError> {
     let trimmed = period.trim();
     if trimmed.len() < 3 {
-        return Err(
-            std::io::Error::other("period must include at least 3 ROC year digits").into(),
-        );
+        return Err(std::io::Error::other("period must include at least 3 ROC year digits").into());
     }
 
     let roc_year = trimmed
@@ -99,6 +96,44 @@ fn parse_period_year(period: &str) -> Result<i32, DownloadError> {
         .parse::<i32>()
         .map_err(|_| std::io::Error::other("period must start with 3 ROC year digits"))?;
     Ok(roc_year + 1911)
+}
+
+fn parse_open_date_to_year_month(open_date: &str) -> Result<YearMonth, DownloadError> {
+    let trimmed = open_date.trim();
+    let mut parts = trimmed.split('-');
+
+    let year = parts
+        .next()
+        .ok_or_else(|| std::io::Error::other("open_date must be in YYYY-MM-DD format"))?
+        .parse::<i32>()
+        .map_err(|_| std::io::Error::other("open_date year must be a valid number"))?;
+    let month = parts
+        .next()
+        .ok_or_else(|| std::io::Error::other("open_date must be in YYYY-MM-DD format"))?
+        .parse::<u8>()
+        .map_err(|_| std::io::Error::other("open_date month must be a valid number"))?;
+    let day = parts
+        .next()
+        .ok_or_else(|| std::io::Error::other("open_date must be in YYYY-MM-DD format"))?
+        .parse::<u8>()
+        .map_err(|_| std::io::Error::other("open_date day must be a valid number"))?;
+
+    if parts.next().is_some() {
+        return Err(std::io::Error::other("open_date must be in YYYY-MM-DD format").into());
+    }
+    if !(1..=12).contains(&month) {
+        return Err(std::io::Error::other("open_date month must be between 01 and 12").into());
+    }
+
+    let max_day = days_in_month(year, month);
+    if day == 0 || day > max_day {
+        return Err(std::io::Error::other(format!(
+            "open_date day must be between 01 and {max_day:02}"
+        ))
+        .into());
+    }
+
+    Ok(YearMonth::new(year, month))
 }
 
 pub(crate) fn game_query_month_bounds(game: LotteryGame) -> (YearMonth, YearMonth) {
@@ -141,7 +176,62 @@ pub(crate) fn validate_query_range_for_game(
     query: &HistoryDrawQuery,
 ) -> Result<(), DownloadError> {
     let (allowed_start, allowed_end) = game_query_month_bounds(game);
-    let (period, month, end_month) = query.normalized_params()?;
+    let period = query.period.as_deref().unwrap_or("").trim();
+
+    if game == LotteryGame::BingoBingo {
+        if !period.is_empty() {
+            let query_year = parse_period_year(period)?;
+            if query_year < allowed_start.year || query_year > allowed_end.year {
+                return Err(std::io::Error::other(format!(
+                    "query period {period} (AD {query_year}) is outside supported range {}-{:02} to {}-{:02} for {}",
+                    allowed_start.year,
+                    allowed_start.month,
+                    allowed_end.year,
+                    allowed_end.month,
+                    game.metadata().display_name
+                ))
+                .into());
+            }
+            return Ok(());
+        }
+
+        let open_date = query.open_date.as_deref().unwrap_or("").trim();
+        if open_date.is_empty() {
+            return Err(std::io::Error::other(
+                "open_date or period is required for BINGO BINGO remote query",
+            )
+            .into());
+        }
+
+        let query_month = parse_open_date_to_year_month(open_date)?;
+        if query_month < allowed_start || query_month > allowed_end {
+            return Err(std::io::Error::other(format!(
+                "query open_date {open_date} is outside supported range {}-{:02} to {}-{:02} for {}",
+                allowed_start.year,
+                allowed_start.month,
+                allowed_end.year,
+                allowed_end.month,
+                game.metadata().display_name
+            ))
+            .into());
+        }
+
+        return Ok(());
+    }
+
+    if query
+        .open_date
+        .as_deref()
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
+    {
+        return Err(std::io::Error::other(
+            "open_date is not supported for this game in remote query",
+        )
+        .into());
+    }
+
+    let (_, month, end_month) = query.normalized_params()?;
 
     if !period.is_empty() {
         let query_year = parse_period_year(period)?;
@@ -189,7 +279,7 @@ pub(crate) const fn remote_query_param_support(game: LotteryGame) -> RemoteQuery
             month: false,
             end_month: false,
             open_date: true,
-            period: false,
+            period: true,
         },
         _ => RemoteQueryParamSupport {
             month: true,
@@ -445,30 +535,24 @@ fn days_in_month(year: i32, month: u8) -> u8 {
     }
 }
 
-fn month_range_days(start: YearMonth, end: YearMonth) -> Vec<String> {
-    // Bingo history is queried by openDate, so expand month ranges into daily requests.
-    let mut result = Vec::new();
-    let mut cursor = start;
-
-    while cursor <= end {
-        let dim = days_in_month(cursor.year, cursor.month);
-        for day in 1..=dim {
-            result.push(format!("{:04}-{:02}-{:02}", cursor.year, cursor.month, day));
-        }
-
-        if cursor.month == 12 {
-            cursor = YearMonth::new(cursor.year + 1, 1);
-        } else {
-            cursor = YearMonth::new(cursor.year, cursor.month + 1);
-        }
-    }
-
-    result
-}
-
 fn fetch_bingo_result_by_open_date(
     client: &reqwest::blocking::Client,
     open_date: &str,
+) -> Result<Vec<HistoryDrawItem>, DownloadError> {
+    fetch_bingo_result_by_filter(client, "openDate", open_date)
+}
+
+fn fetch_bingo_result_by_period(
+    client: &reqwest::blocking::Client,
+    period: &str,
+) -> Result<Vec<HistoryDrawItem>, DownloadError> {
+    fetch_bingo_result_by_filter(client, "period", period)
+}
+
+fn fetch_bingo_result_by_filter(
+    client: &reqwest::blocking::Client,
+    key: &str,
+    value: &str,
 ) -> Result<Vec<HistoryDrawItem>, DownloadError> {
     let page_size = 200usize;
     let mut page_num = 1usize;
@@ -478,7 +562,7 @@ fn fetch_bingo_result_by_open_date(
         let response_body = client
             .get(format!("{TAIWAN_LOTTERY_API_BASE_URL}/Lottery/BingoResult"))
             .query(&[
-                ("openDate", open_date),
+                (key, value),
                 ("pageNum", &page_num.to_string()),
                 ("pageSize", &page_size.to_string()),
             ])
@@ -552,28 +636,23 @@ fn query_bingo_history_with_client(
     client: &reqwest::blocking::Client,
     query: &HistoryDrawQuery,
 ) -> Result<HistoryDrawPage, DownloadError> {
-    // Bingo uses a different endpoint contract from the month-based NumberHistory APIs.
-    let (period, month, end_month) = query.normalized_params()?;
+    // Bingo uses openDate/period rather than month/endMonth.
+    let period = query.period.as_deref().unwrap_or("").trim();
     if !period.is_empty() {
+        let items = fetch_bingo_result_by_period(client, period)?;
+        let total_size = items.len();
+        return Ok(HistoryDrawPage { total_size, items });
+    }
+
+    let open_date = query.open_date.as_deref().unwrap_or("").trim();
+    if open_date.is_empty() {
         return Err(std::io::Error::other(
-            "remote period query is not supported for BINGO BINGO; use month or month-range",
+            "open_date or period is required for BINGO BINGO remote query",
         )
         .into());
     }
 
-    let start = YearMonth::parse_yyyy_mm(month)?;
-    let end = YearMonth::parse_yyyy_mm(end_month)?;
-    if end < start {
-        return Err(
-            std::io::Error::other("end_month must be greater than or equal to month").into(),
-        );
-    }
-
-    let mut all_items = Vec::new();
-    for open_date in month_range_days(start, end) {
-        let mut items = fetch_bingo_result_by_open_date(client, &open_date)?;
-        all_items.append(&mut items);
-    }
+    let mut all_items = fetch_bingo_result_by_open_date(client, open_date)?;
 
     all_items.sort_by(|a, b| a.period.cmp(&b.period));
     all_items.dedup_by(|a, b| a.period == b.period);
@@ -639,10 +718,16 @@ mod tests {
     }
 
     #[test]
-    fn month_range_days_spans_multiple_months() {
-        let days = month_range_days(YearMonth::new(2026, 6), YearMonth::new(2026, 7));
-        assert_eq!(days.first().map(String::as_str), Some("2026-06-01"));
-        assert_eq!(days.last().map(String::as_str), Some("2026-07-31"));
+    fn parse_open_date_to_year_month_accepts_valid_date() {
+        let month = parse_open_date_to_year_month("2026-07-08").expect("must parse open_date");
+        assert_eq!(month, YearMonth::new(2026, 7));
+    }
+
+    #[test]
+    fn parse_open_date_to_year_month_rejects_invalid_date() {
+        let err = parse_open_date_to_year_month("2026-02-30")
+            .expect_err("invalid day should be rejected");
+        assert!(matches!(err, DownloadError::Io(_)));
     }
 
     #[test]
@@ -732,11 +817,37 @@ mod tests {
     }
 
     #[test]
+    fn validate_query_range_rejects_month_query_for_bingo_bingo() {
+        let query = HistoryDrawQuery::by_month("2026-07");
+        let err = validate_query_range_for_game(LotteryGame::BingoBingo, &query)
+            .expect_err("bingo should require open_date or period");
+        assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
+    fn validate_query_range_accepts_open_date_query_for_bingo_bingo() {
+        let query = HistoryDrawQuery::by_open_date("2026-07-08");
+        validate_query_range_for_game(LotteryGame::BingoBingo, &query)
+            .expect("bingo should allow open_date query");
+    }
+
+    #[test]
+    fn validate_query_range_rejects_open_date_for_non_bingo_game() {
+        let query = HistoryDrawQuery::by_open_date("2026-07-08");
+        let err = validate_query_range_for_game(LotteryGame::Lotto649, &query)
+            .expect_err("non-bingo should reject open_date");
+        assert!(matches!(err, DownloadError::Io(_)));
+    }
+
+    #[test]
     fn lottery_game_query_month_range_caps_active_game_to_current_month() {
         let (start, end) = game_query_month_bounds(LotteryGame::Lotto649);
         let now = current_utc_year_month();
         assert_eq!(start.to_yyyy_mm(), "2007-01");
-        assert_eq!(end.to_yyyy_mm(), format!("{:04}-{:02}", now.year, now.month));
+        assert_eq!(
+            end.to_yyyy_mm(),
+            format!("{:04}-{:02}", now.year, now.month)
+        );
     }
 
     #[test]
@@ -744,7 +855,10 @@ mod tests {
         let (start, end) = game_query_month_bounds(LotteryGame::BingoBingo);
         let now = current_utc_year_month();
         assert_eq!(start.to_yyyy_mm(), "2024-01");
-        assert_eq!(end.to_yyyy_mm(), format!("{:04}-{:02}", now.year, now.month));
+        assert_eq!(
+            end.to_yyyy_mm(),
+            format!("{:04}-{:02}", now.year, now.month)
+        );
     }
 
     #[test]
@@ -759,6 +873,6 @@ mod tests {
         assert!(!bingo.month);
         assert!(!bingo.end_month);
         assert!(bingo.open_date);
-        assert!(!bingo.period);
+        assert!(bingo.period);
     }
 }
