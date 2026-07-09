@@ -18,9 +18,9 @@ The project includes tests for both interfaces and they should stay aligned.
 Example local query for `Lotto649`:
 
 ```rust
-use taiwan_lottery::{
-  download_history_draw, query_history_draw, HistoryDrawQuery, LotteryGame,
-};
+use taiwan_lottery::{query_history_draw, HistoryDrawQuery, LotteryGame};
+
+use taiwan_lottery::download::gaze::download_history_draw;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     download_history_draw("data")?;
@@ -131,7 +131,6 @@ Download:
 - `c/build/download api-doc data`
 - `c/build/download dataset D416F data`
 - `c/build/download history-draw data`
-- `c/build/download history-draw-gov data`
 - `c/build/download history-draw-taiwan-lottery data`
 
 Draw:
@@ -151,13 +150,9 @@ Query:
   Downloads `financialplanning_api_docs.json` into `output_dir`.
 - `download_dataset(output_dir, dataset_code)`
   Downloads one dataset CSV (for example `D416F.csv`), then downloads all links in that CSV and extracts ZIP files automatically.
-- `download_history_draw(output_dir)`
-  Downloads history draw data with a two-path strategy:
-  1. try `D423F` via FinancialPlanning OpenData first.
-  2. fallback to the Taiwan Lottery yearly ZIP API only when the primary path fails with an HTTP/network error.
-- `download_history_draw_from_gov_data(output_dir)`
+- `download::gaze::download_history_draw(output_dir)`
   Downloads history draw data only from FinancialPlanning OpenData (`D423F`).
-- `download_history_draw_from_taiwan_lottery(output_dir)`
+- `download::tlc::download_history_draw(output_dir)`
   Downloads history draw data only from the Taiwan Lottery yearly ZIP API.
 - `download_all(output_dir)`
   Downloads API docs and all datasets listed in the docs.

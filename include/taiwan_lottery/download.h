@@ -19,10 +19,8 @@ extern "C" {
 int download_api_doc(const char* output_dir);
 /* Download one CSV dataset and any linked files referenced by that CSV. */
 int download_dataset(const char* output_dir, const char* dataset_code);
-/* Download history draw data using the primary path with API fallback. */
+/* Download history draw data from FinancialPlanning OpenData. */
 int download_history_draw(const char* output_dir);
-/* Download history draw data only from FinancialPlanning OpenData. */
-int download_history_draw_from_gov_data(const char* output_dir);
 /* Download history draw data only from Taiwan Lottery yearly ZIP downloads. */
 int download_history_draw_from_taiwan_lottery(const char* output_dir);
 /* Download API docs and every dataset listed in those docs. */

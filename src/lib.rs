@@ -38,7 +38,7 @@
 //! let result = draw_by_game(LotteryGame::Lotto649);
 //! ```
 
-mod download;
+pub mod download;
 mod draw;
 mod errors;
 mod ffi;
@@ -50,10 +50,22 @@ use query::remote::{game_query_month_bounds, remote_query_param_support};
 use rule::metadata_for_game;
 
 pub use download::{
-    build_csv_url, download_all, download_api_doc, download_dataset, download_history_draw,
-    download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery,
-    parse_codes_from_api_docs,
+    build_csv_url, download_all, download_api_doc, download_dataset, parse_codes_from_api_docs,
 };
+/// Downloads history draw files from FinancialPlanning OpenData (`D423F`).
+#[deprecated(note = "use taiwan_lottery::download::gaze::download_history_draw")]
+pub fn download_history_draw(
+    output_dir: impl AsRef<std::path::Path>,
+) -> Result<Vec<std::path::PathBuf>, DownloadError> {
+    download::gaze::download_history_draw(output_dir)
+}
+/// Downloads history draw files from Taiwan Lottery yearly ZIP API.
+#[deprecated(note = "use taiwan_lottery::download::tlc::download_history_draw")]
+pub fn download_history_draw_from_taiwan_lottery(
+    output_dir: impl AsRef<std::path::Path>,
+) -> Result<Vec<std::path::PathBuf>, DownloadError> {
+    download::tlc::download_history_draw(output_dir)
+}
 pub use draw::{draw_by_game, DrawResult};
 pub use errors::DownloadError;
 pub use numbers::{

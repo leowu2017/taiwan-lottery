@@ -1,9 +1,10 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
+use crate::download::gaze::download_history_draw as download_history_draw_gaze;
+use crate::download::tlc::download_history_draw as download_history_draw_from_taiwan_lottery_tlc;
 use crate::{
-    download_all, download_api_doc, download_dataset, download_history_draw,
-    download_history_draw_from_gov_data, download_history_draw_from_taiwan_lottery, draw_by_game,
+    download_all, download_api_doc, download_dataset, draw_by_game,
     query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError, HistoryDrawQuery,
     LotteryDisplayLanguage, LotteryGame,
 };
@@ -145,21 +146,7 @@ pub extern "C" fn download_history_draw_ffi(output_dir: *const c_char) -> i32 {
         Err(status) => return status,
     };
 
-    map_download_result(download_history_draw(out_dir))
-}
-
-#[unsafe(export_name = "download_history_draw_from_gov_data")]
-pub extern "C" fn download_history_draw_from_gov_data_ffi(output_dir: *const c_char) -> i32 {
-    let out_dir = match c_str_arg_to_string(
-        output_dir,
-        DownloadStatus::NullPath as i32,
-        DownloadStatus::InvalidPathUtf8 as i32,
-    ) {
-        Ok(value) => value,
-        Err(status) => return status,
-    };
-
-    map_download_result(download_history_draw_from_gov_data(out_dir))
+    map_download_result(download_history_draw_gaze(out_dir))
 }
 
 #[unsafe(export_name = "download_history_draw_from_taiwan_lottery")]
@@ -173,7 +160,7 @@ pub extern "C" fn download_history_draw_from_taiwan_lottery_ffi(output_dir: *con
         Err(status) => return status,
     };
 
-    map_download_result(download_history_draw_from_taiwan_lottery(out_dir))
+    map_download_result(download_history_draw_from_taiwan_lottery_tlc(out_dir))
 }
 
 #[unsafe(export_name = "download_all")]
