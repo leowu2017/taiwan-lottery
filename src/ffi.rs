@@ -1,29 +1,23 @@
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::os::raw::c_char;
 
 use crate::download::gaze::download_history_draw as download_history_draw_gaze;
 use crate::download::tlc::download_history_draw as download_history_draw_from_taiwan_lottery_tlc;
 use crate::{
     download_all, download_api_doc, download_dataset, draw_by_game,
-    query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError, HistoryDrawQuery,
-    LotteryDisplayLanguage, LotteryGame,
+    query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError,
+    LotteryDisplayLanguage,
 };
 
-#[repr(i32)]
-enum DownloadStatus {
-    Success = 0,
-    NullPath = 1,
-    InvalidPathUtf8 = 2,
-    Io = 3,
-    Network = 4,
-    Parse = 5,
-    NullDatasetCode = 6,
-    InvalidDatasetCodeUtf8 = 7,
-    InvalidGame = 8,
-    InvalidQueryUtf8 = 9,
-    NullResultPointer = 10,
-    InvalidLanguage = 11,
-}
+mod ffi_args;
+mod ffi_convert;
+mod ffi_free;
+mod ffi_status;
+
+use ffi_args::{build_history_draw_query, c_str_arg_to_string, int_to_display_language, int_to_lottery_game};
+use ffi_convert::{draw_result_to_c, history_page_to_c, lottery_game_metadata_to_c, lottery_game_query_range_to_c};
+use ffi_free::{free_draw_numbers, free_history_draw_item};
+use ffi_status::{map_download_result, DownloadStatus};
 
 #[repr(C)]
 pub struct DrawNumbersC {
@@ -437,76 +431,6 @@ pub extern "C" fn free_lottery_game_metadata_ffi(metadata: *mut LotteryGameMetad
     }
 }
 
-fn c_str_arg_to_string(
-    ptr: *const c_char,
-    null_status: i32,
-    invalid_utf8_status: i32,
-) -> Result<String, i32> {
-    if ptr.is_null() {
-        return Err(null_status);
-    }
-
-    // SAFETY: ptr is checked for null above and expected to point to a valid C string.
-    let c_str = unsafe { CStr::from_ptr(ptr) };
-    match c_str.to_str() {
-        Ok(value) => Ok(value.to_string()),
-        Err(_) => Err(invalid_utf8_status),
-    }
-}
-
-fn optional_c_str_arg_to_string(
-    ptr: *const c_char,
-    invalid_utf8_status: i32,
-) -> Result<Option<String>, i32> {
-    if ptr.is_null() {
-        return Ok(None);
-    }
-
-    // SAFETY: pointer is either null (handled above) or expected to point to a valid C string.
-    let c_str = unsafe { CStr::from_ptr(ptr) };
-    match c_str.to_str() {
-        Ok(value) => {
-            let trimmed = value.trim();
-            if trimmed.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(trimmed.to_string()))
-            }
-        }
-        Err(_) => Err(invalid_utf8_status),
-    }
-}
-
-fn int_to_lottery_game(value: i32) -> Result<LotteryGame, i32> {
-    LotteryGame::from_code(value).ok_or(DownloadStatus::InvalidGame as i32)
-}
-
-fn int_to_display_language(value: i32) -> Result<LotteryDisplayLanguage, i32> {
-    match value {
-        0 => Ok(LotteryDisplayLanguage::English),
-        1 => Ok(LotteryDisplayLanguage::Chinese),
-        _ => Err(DownloadStatus::InvalidLanguage as i32),
-    }
-}
-
-fn build_history_draw_query(
-    period: *const c_char,
-    month: *const c_char,
-    end_month: *const c_char,
-) -> Result<HistoryDrawQuery, i32> {
-    let period = optional_c_str_arg_to_string(period, DownloadStatus::InvalidQueryUtf8 as i32)?;
-    let month = optional_c_str_arg_to_string(month, DownloadStatus::InvalidQueryUtf8 as i32)?;
-    let end_month =
-        optional_c_str_arg_to_string(end_month, DownloadStatus::InvalidQueryUtf8 as i32)?;
-
-    Ok(HistoryDrawQuery {
-        period,
-        month,
-        end_month,
-        open_date: None,
-    })
-}
-
 fn map_history_result_to_struct_status(
     result: Result<crate::HistoryDrawPage, DownloadError>,
     out_page: *mut *mut HistoryDrawPageC,
@@ -529,176 +453,3 @@ fn map_history_result_to_struct_status(
     DownloadStatus::Success as i32
 }
 
-fn history_page_to_c(page: crate::HistoryDrawPage) -> Box<HistoryDrawPageC> {
-    let mut items = Vec::with_capacity(page.items.len());
-    for item in page.items {
-        items.push(history_item_to_c(item));
-    }
-
-    let item_count = items.len();
-    let boxed_items = items.into_boxed_slice();
-    let items_ptr = Box::into_raw(boxed_items) as *mut HistoryDrawItemC;
-
-    Box::new(HistoryDrawPageC {
-        total_size: page.total_size,
-        item_count,
-        items: items_ptr,
-    })
-}
-
-fn lottery_game_query_range_to_c(
-    range: crate::LotteryGameQueryRange,
-) -> Box<LotteryGameQueryRangeC> {
-    Box::new(LotteryGameQueryRangeC {
-        min_month: string_to_c_ptr(range.min_month),
-        max_month: string_to_c_ptr(range.max_month),
-    })
-}
-
-fn lottery_game_number_rule_to_c(rule: crate::LotteryGameNumberRule) -> LotteryGameNumberRuleC {
-    LotteryGameNumberRuleC {
-        name: string_to_c_ptr(rule.name.to_string()),
-        picks: rule.picks,
-        min: rule.min,
-        max: rule.max,
-        allow_repeat: i32::from(rule.allow_repeat),
-    }
-}
-
-fn lottery_game_metadata_to_c(metadata: crate::LotteryGameMetadata) -> Box<LotteryGameMetadataC> {
-    let mut rules = Vec::with_capacity(metadata.number_ranges.len());
-    for rule in metadata.number_ranges {
-        rules.push(lottery_game_number_rule_to_c(*rule));
-    }
-
-    let number_range_count = rules.len();
-    let boxed_rules = rules.into_boxed_slice();
-    let number_ranges = if number_range_count == 0 {
-        std::ptr::null_mut()
-    } else {
-        Box::into_raw(boxed_rules) as *mut LotteryGameNumberRuleC
-    };
-
-    Box::new(LotteryGameMetadataC {
-        display_name: string_to_c_ptr(metadata.display_name.to_string()),
-        display_name_english: string_to_c_ptr(metadata.display_name_english.to_string()),
-        display_name_chinese: string_to_c_ptr(metadata.display_name_chinese.to_string()),
-        number_rule: string_to_c_ptr(metadata.number_rule.to_string()),
-        number_range_count,
-        number_ranges,
-    })
-}
-
-fn draw_result_to_c(result: crate::DrawResult) -> Box<DrawResultC> {
-    Box::new(DrawResultC {
-        base: draw_numbers_to_c(result.base),
-        has_bonus: i32::from(result.bonus.is_some()),
-        bonus: result.bonus.unwrap_or_default(),
-    })
-}
-
-fn history_item_to_c(item: crate::HistoryDrawItem) -> HistoryDrawItemC {
-    HistoryDrawItemC {
-        period: string_to_c_ptr(item.period),
-        date: optional_string_to_c_ptr(item.date),
-        redeemable_date: optional_string_to_c_ptr(item.redeemable_date),
-        numbers: sorted_draw_numbers_to_c(item.numbers),
-    }
-}
-
-fn draw_numbers_to_c(numbers: crate::DrawNumbers) -> DrawNumbersC {
-    let numbers_len = numbers.numbers.len();
-    let numbers_ptr = if numbers_len == 0 {
-        std::ptr::null_mut()
-    } else {
-        Box::into_raw(numbers.numbers.into_boxed_slice()) as *mut i32
-    };
-
-    DrawNumbersC {
-        numbers: numbers_ptr,
-        numbers_len,
-    }
-}
-
-fn sorted_draw_numbers_to_c(numbers: crate::SortedDrawNumbers) -> SortedDrawNumbersC {
-    let (sorted_numbers, sorted_numbers_len) = match numbers.sorted {
-        Some(sorted_numbers) if !sorted_numbers.is_empty() => {
-            let len = sorted_numbers.len();
-            let ptr = Box::into_raw(sorted_numbers.into_boxed_slice()) as *mut i32;
-            (ptr, len)
-        }
-        _ => (std::ptr::null_mut(), 0),
-    };
-
-    SortedDrawNumbersC {
-        base: draw_numbers_to_c(numbers.base),
-        sorted_numbers,
-        sorted_numbers_len,
-    }
-}
-
-fn free_history_draw_item(item: &HistoryDrawItemC) {
-    if !item.period.is_null() {
-        // SAFETY: pointer was created by CString::into_raw in this crate.
-        let _ = unsafe { CString::from_raw(item.period) };
-    }
-    if !item.date.is_null() {
-        // SAFETY: pointer was created by CString::into_raw in this crate.
-        let _ = unsafe { CString::from_raw(item.date) };
-    }
-    if !item.redeemable_date.is_null() {
-        // SAFETY: pointer was created by CString::into_raw in this crate.
-        let _ = unsafe { CString::from_raw(item.redeemable_date) };
-    }
-
-    free_sorted_draw_numbers(&item.numbers);
-}
-
-fn free_draw_numbers(numbers: &DrawNumbersC) {
-    if !numbers.numbers.is_null() {
-        let _ = unsafe {
-            Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                numbers.numbers,
-                numbers.numbers_len,
-            ))
-        };
-    }
-}
-
-fn free_sorted_draw_numbers(numbers: &SortedDrawNumbersC) {
-    free_draw_numbers(&numbers.base);
-
-    if !numbers.sorted_numbers.is_null() {
-        let _ = unsafe {
-            Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                numbers.sorted_numbers,
-                numbers.sorted_numbers_len,
-            ))
-        };
-    }
-}
-
-fn string_to_c_ptr(value: String) -> *mut c_char {
-    let sanitized = value.replace('\0', "");
-    CString::new(sanitized)
-        .expect("string sanitized to avoid interior nul")
-        .into_raw()
-}
-
-fn optional_string_to_c_ptr(value: Option<String>) -> *mut c_char {
-    match value {
-        Some(text) => string_to_c_ptr(text),
-        None => std::ptr::null_mut(),
-    }
-}
-
-fn map_download_result<T>(result: Result<T, DownloadError>) -> i32 {
-    match result {
-        Ok(_) => DownloadStatus::Success as i32,
-        Err(DownloadError::Io(_)) => DownloadStatus::Io as i32,
-        Err(DownloadError::Http(_)) => DownloadStatus::Network as i32,
-        Err(DownloadError::Json(_) | DownloadError::Csv(_) | DownloadError::Zip(_)) => {
-            DownloadStatus::Parse as i32
-        }
-    }
-}
