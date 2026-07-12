@@ -171,6 +171,60 @@ pub(crate) fn game_query_month_bounds(game: LotteryGame) -> (YearMonth, YearMont
     }
 }
 
+fn ensure_period_year_in_range(
+    game: LotteryGame,
+    period: &str,
+    query_year: i32,
+    allowed_start: YearMonth,
+    allowed_end: YearMonth,
+) -> Result<(), DownloadError> {
+    if query_year < allowed_start.year || query_year > allowed_end.year {
+        return Err(std::io::Error::other(format!(
+            "query period {period} (AD {query_year}) is outside supported range {}-{:02} to {}-{:02} for {}",
+            allowed_start.year,
+            allowed_start.month,
+            allowed_end.year,
+            allowed_end.month,
+            game.metadata().display_name
+        ))
+        .into());
+    }
+
+    Ok(())
+}
+
+fn ensure_month_range_in_range(
+    game: LotteryGame,
+    month: &str,
+    end_month: &str,
+    query_start: YearMonth,
+    query_end: YearMonth,
+    allowed_start: YearMonth,
+    allowed_end: YearMonth,
+) -> Result<(), DownloadError> {
+    if query_end < query_start {
+        return Err(
+            std::io::Error::other("end_month must be greater than or equal to month").into(),
+        );
+    }
+
+    if query_start < allowed_start || query_end > allowed_end {
+        return Err(std::io::Error::other(format!(
+            "query month range {} to {} is outside supported range {}-{:02} to {}-{:02} for {}",
+            month,
+            end_month,
+            allowed_start.year,
+            allowed_start.month,
+            allowed_end.year,
+            allowed_end.month,
+            game.metadata().display_name
+        ))
+        .into());
+    }
+
+    Ok(())
+}
+
 pub(crate) fn validate_query_range_for_game(
     game: LotteryGame,
     query: &HistoryDrawQuery,
@@ -181,17 +235,7 @@ pub(crate) fn validate_query_range_for_game(
     if game == LotteryGame::BingoBingo {
         if !period.is_empty() {
             let query_year = parse_period_year(period)?;
-            if query_year < allowed_start.year || query_year > allowed_end.year {
-                return Err(std::io::Error::other(format!(
-                    "query period {period} (AD {query_year}) is outside supported range {}-{:02} to {}-{:02} for {}",
-                    allowed_start.year,
-                    allowed_start.month,
-                    allowed_end.year,
-                    allowed_end.month,
-                    game.metadata().display_name
-                ))
-                .into());
-            }
+            ensure_period_year_in_range(game, period, query_year, allowed_start, allowed_end)?;
             return Ok(());
         }
 
@@ -235,40 +279,21 @@ pub(crate) fn validate_query_range_for_game(
 
     if !period.is_empty() {
         let query_year = parse_period_year(period)?;
-        if query_year < allowed_start.year || query_year > allowed_end.year {
-            return Err(std::io::Error::other(format!(
-                "query period {period} (AD {query_year}) is outside supported range {}-{:02} to {}-{:02} for {}",
-                allowed_start.year,
-                allowed_start.month,
-                allowed_end.year,
-                allowed_end.month,
-                game.metadata().display_name
-            ))
-            .into());
-        }
+        ensure_period_year_in_range(game, period, query_year, allowed_start, allowed_end)?;
         return Ok(());
     }
 
     let query_start = YearMonth::parse_yyyy_mm(month)?;
     let query_end = YearMonth::parse_yyyy_mm(end_month)?;
-    if query_end < query_start {
-        return Err(
-            std::io::Error::other("end_month must be greater than or equal to month").into(),
-        );
-    }
-    if query_start < allowed_start || query_end > allowed_end {
-        return Err(std::io::Error::other(format!(
-            "query month range {} to {} is outside supported range {}-{:02} to {}-{:02} for {}",
-            month,
-            end_month,
-            allowed_start.year,
-            allowed_start.month,
-            allowed_end.year,
-            allowed_end.month,
-            game.metadata().display_name
-        ))
-        .into());
-    }
+    ensure_month_range_in_range(
+        game,
+        month,
+        end_month,
+        query_start,
+        query_end,
+        allowed_start,
+        allowed_end,
+    )?;
 
     Ok(())
 }
