@@ -57,24 +57,77 @@ fn resolve_history_data_root(output_dir: &Path) -> Result<PathBuf, DownloadError
     }
 }
 
-fn collect_history_csv_files(root: &Path, output: &mut Vec<PathBuf>) -> Result<(), DownloadError> {
+fn year_from_path(path: &Path) -> Option<i32> {
+    path.file_name()
+        .and_then(|value| value.to_str())
+        .and_then(|value| value.parse::<i32>().ok())
+}
+
+fn should_descend_into_dir(path: &Path, target_year: Option<i32>) -> bool {
+    match (target_year, year_from_path(path)) {
+        (Some(expected), Some(actual)) => actual == expected,
+        _ => true,
+    }
+}
+
+fn collect_history_csv_files(
+    root: &Path,
+    prefixes: &[&str],
+    target_month: Option<&str>,
+    output: &mut Vec<PathBuf>,
+) -> Result<(), DownloadError> {
+    let target_year = target_month
+        .and_then(|value| value.split('-').next())
+        .and_then(|value| value.parse::<i32>().ok());
+
     for entry in fs::read_dir(root)? {
         let entry = entry?;
         let path = entry.path();
         let file_type = entry.file_type()?;
 
         if file_type.is_dir() {
-            collect_history_csv_files(&path, output)?;
+            if should_descend_into_dir(&path, target_year) {
+                collect_history_csv_files(&path, prefixes, target_month, output)?;
+            }
             continue;
         }
 
-        let is_csv = path
+        if !path
             .extension()
             .and_then(|value| value.to_str())
-            .is_some_and(|value| value.eq_ignore_ascii_case("csv"));
-        if is_csv {
-            output.push(path);
+            .is_some_and(|value| value.eq_ignore_ascii_case("csv"))
+        {
+            continue;
         }
+
+        let file_name = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default();
+
+        if !prefixes.iter().any(|prefix| file_name.starts_with(prefix)) {
+            continue;
+        }
+
+        if let Some(target_month) = target_month {
+            let target_year = target_month
+                .split('-')
+                .next()
+                .and_then(|value| value.parse::<i32>().ok());
+            let file_matches_year = target_year
+                .map(|value| file_name.contains(&format!("_{value}.csv")))
+                .unwrap_or(false);
+            let path_matches_year = target_year
+                .is_none_or(|value| path.ancestors().any(|ancestor| year_from_path(ancestor) == Some(value)));
+
+            // D423F is grouped by year directories; accept either folder-based
+            // or filename-based year layout.
+            if !file_matches_year && !path_matches_year {
+                continue;
+            }
+        }
+
+        output.push(path);
     }
 
     Ok(())
@@ -166,13 +219,14 @@ pub(crate) fn query_history_draw_from_downloaded_data(
     let root = resolve_history_data_root(output_dir)?;
 
     let prefixes = history_game_file_prefixes(game);
+    let target_month = if period.is_empty() {
+        Some(month)
+    } else {
+        None
+    };
+
     let mut csv_files = Vec::new();
-    collect_history_csv_files(&root, &mut csv_files)?;
-    csv_files.retain(|path| {
-        path.file_name()
-            .and_then(|value| value.to_str())
-            .is_some_and(|name| prefixes.iter().any(|prefix| name.starts_with(prefix)))
-    });
+    collect_history_csv_files(&root, prefixes, target_month, &mut csv_files)?;
 
     let mut all_records = Vec::new();
     for file_path in csv_files {
@@ -233,6 +287,15 @@ mod tests {
         assert_eq!(parse_date_month("2026/07/07"), Some("2026-07".to_string()));
         assert_eq!(parse_date_month("2026"), None);
     }
+
+    #[test]
+    fn year_path_helpers_match_numeric_year_dirs_only() {
+        assert_eq!(year_from_path(Path::new("/tmp/2024")), Some(2024));
+        assert_eq!(year_from_path(Path::new("/tmp/not-a-year")), None);
+        assert!(should_descend_into_dir(Path::new("/tmp/2024"), Some(2024)));
+        assert!(!should_descend_into_dir(Path::new("/tmp/2025"), Some(2024)));
+    }
+
 
     #[test]
     fn bingo_and_lotto638_prefixes_are_strictly_separated() {
