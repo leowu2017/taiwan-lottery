@@ -4,8 +4,9 @@ fn print_usage(program: &str) {
     eprintln!("Usage:");
     eprintln!("  {program} all [output_dir]");
     eprintln!("  {program} api-doc [output_dir]");
-    eprintln!("  {program} history-draw [output_dir]");
-    eprintln!("  {program} history-draw-taiwan-lottery [output_dir]");
+    eprintln!("  {program} history-draw [output_dir]            (from TLC, default)");
+    eprintln!("  {program} history-draw-tlc [output_dir]");
+    eprintln!("  {program} history-draw-gaze [output_dir]");
     eprintln!("  {program} dataset <DATASET_CODE> [output_dir]");
 }
 
@@ -41,27 +42,27 @@ fn main() {
                 println!("Downloaded API docs to {}", path.display());
             })
         }
-        "history-draw" => {
-            let output_dir = args
-                .next()
-                .map(PathBuf::from)
-                .unwrap_or_else(default_output_dir);
-            taiwan_lottery::download::gaze::download_history_draw(&output_dir).map(|files| {
-                println!(
-                    "Downloaded history draw dataset with {} files into {}",
-                    files.len(),
-                    output_dir.display()
-                );
-            })
-        }
-        "history-draw-taiwan-lottery" => {
+        "history-draw" | "history-draw-tlc" => {
             let output_dir = args
                 .next()
                 .map(PathBuf::from)
                 .unwrap_or_else(default_output_dir);
             taiwan_lottery::download::tlc::download_history_draw(&output_dir).map(|files| {
                 println!(
-                    "Downloaded history draw (taiwan lottery) with {} files into {}",
+                    "Downloaded history draw (TLC) with {} files into {}",
+                    files.len(),
+                    output_dir.display()
+                );
+            })
+        }
+        "history-draw-gaze" => {
+            let output_dir = args
+                .next()
+                .map(PathBuf::from)
+                .unwrap_or_else(default_output_dir);
+            taiwan_lottery::download::gaze::download_history_draw(&output_dir).map(|files| {
+                println!(
+                    "Downloaded history draw (Gaze) with {} files into {}",
                     files.len(),
                     output_dir.display()
                 );
