@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::query::remote::validate_query_range_for_game;
+use super::common::{parse_date_month, validate_query_range_for_game};
 use crate::{
     DownloadError, HistoryDrawItem, HistoryDrawPage, HistoryDrawQuery, LotteryGame,
     SortedDrawNumbers,
@@ -131,15 +131,6 @@ fn collect_history_csv_files(
     }
 
     Ok(())
-}
-
-fn parse_date_month(date: &str) -> Option<String> {
-    let normalized = date.trim().replace('/', "-");
-    if normalized.len() >= 7 {
-        Some(normalized[..7].to_string())
-    } else {
-        None
-    }
 }
 
 fn extract_draw_numbers(headers: &csv::StringRecord, record: &csv::StringRecord) -> Vec<i32> {
@@ -280,13 +271,6 @@ mod tests {
     use super::*;
     use crate::query_history_draw;
     use std::fs;
-
-    #[test]
-    fn parse_date_month_supports_dash_and_slash() {
-        assert_eq!(parse_date_month("2026-07-07"), Some("2026-07".to_string()));
-        assert_eq!(parse_date_month("2026/07/07"), Some("2026-07".to_string()));
-        assert_eq!(parse_date_month("2026"), None);
-    }
 
     #[test]
     fn year_path_helpers_match_numeric_year_dirs_only() {

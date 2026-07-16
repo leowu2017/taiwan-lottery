@@ -1,5 +1,41 @@
 use crate::{LotteryGame, LotteryGameMetadata, LotteryGameNumberRule};
 
+/// Query date range for a lottery game.
+/// start: (year, month) of the first available draw
+/// end: (year, month) of the last available draw; if None, game is active (querying up to current month)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct GameQueryDateRange {
+    pub(crate) start_year: i32,
+    pub(crate) start_month: u8,
+    pub(crate) end_year: Option<i32>,
+    pub(crate) end_month: Option<u8>,
+}
+
+impl GameQueryDateRange {
+    pub(crate) const fn active(start_year: i32, start_month: u8) -> Self {
+        Self {
+            start_year,
+            start_month,
+            end_year: None,
+            end_month: None,
+        }
+    }
+
+    pub(crate) const fn discontinued(
+        start_year: i32,
+        start_month: u8,
+        end_year: i32,
+        end_month: u8,
+    ) -> Self {
+        Self {
+            start_year,
+            start_month,
+            end_year: Some(end_year),
+            end_month: Some(end_month),
+        }
+    }
+}
+
 const SUPER_LOTTO_638_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
     LotteryGameNumberRule {
         name: "main",
@@ -270,6 +306,24 @@ pub(crate) const fn metadata_for_game(game: LotteryGame) -> LotteryGameMetadata 
     }
 }
 
+pub(crate) const fn query_date_range_for_game(game: LotteryGame) -> GameQueryDateRange {
+    match game {
+        LotteryGame::SuperLotto638 => GameQueryDateRange::active(2008, 1),
+        LotteryGame::Lotto649 => GameQueryDateRange::active(2007, 1),
+        LotteryGame::Daily539 => GameQueryDateRange::active(2007, 1),
+        LotteryGame::Lotto3D => GameQueryDateRange::active(2007, 1),
+        LotteryGame::Lotto4D => GameQueryDateRange::active(2007, 1),
+        LotteryGame::Lotto49M6 => GameQueryDateRange::active(2007, 1),
+        LotteryGame::Lotto39M5 => GameQueryDateRange::active(2010, 9),
+        LotteryGame::BingoBingo => GameQueryDateRange::active(2024, 1),
+        LotteryGame::Lotto38M6 => GameQueryDateRange::discontinued(2007, 1, 2023, 12),
+        LotteryGame::Lotto638 => GameQueryDateRange::discontinued(2007, 1, 2008, 1),
+        LotteryGame::TicTacToe => GameQueryDateRange::discontinued(2009, 7, 2013, 12),
+        LotteryGame::Lotto1224 => GameQueryDateRange::discontinued(2018, 4, 2023, 12),
+        LotteryGame::Lotto740 => GameQueryDateRange::discontinued(2015, 4, 2019, 4),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -302,5 +356,23 @@ mod tests {
         let chinese_metadata = metadata_for_game(LotteryGame::Lotto649)
             .with_display_language(LotteryDisplayLanguage::Chinese);
         assert_eq!(chinese_metadata.display_name, "大樂透");
+    }
+
+    #[test]
+    fn query_date_range_active_games() {
+        let lotto649_range = query_date_range_for_game(LotteryGame::Lotto649);
+        assert_eq!(lotto649_range.start_year, 2007);
+        assert_eq!(lotto649_range.start_month, 1);
+        assert!(lotto649_range.end_year.is_none());
+        assert!(lotto649_range.end_month.is_none());
+    }
+
+    #[test]
+    fn query_date_range_discontinued_games() {
+        let lotto638_range = query_date_range_for_game(LotteryGame::Lotto638);
+        assert_eq!(lotto638_range.start_year, 2007);
+        assert_eq!(lotto638_range.start_month, 1);
+        assert_eq!(lotto638_range.end_year, Some(2008));
+        assert_eq!(lotto638_range.end_month, Some(1));
     }
 }
