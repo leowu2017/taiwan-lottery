@@ -46,6 +46,7 @@ mod numbers;
 mod query;
 mod rule;
 
+use query::common::game_query_date_bounds;
 use query::common::game_query_month_bounds;
 use query::remote_query_param_support;
 use rule::metadata_for_game;
@@ -170,6 +171,15 @@ pub struct LotteryGameQueryRange {
     pub max_month: String,
 }
 
+/// Queryable date range for a game in `YYYY-MM-DD` format.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LotteryGameDateQueryRange {
+    /// Earliest supported query date (inclusive).
+    pub min_date: String,
+    /// Latest supported query date (inclusive).
+    pub max_date: String,
+}
+
 #[deprecated(note = "use LotteryGame instead")]
 pub type HistoryGame = LotteryGame;
 
@@ -215,6 +225,17 @@ impl LotteryGame {
         LotteryGameQueryRange {
             min_month: start.to_yyyy_mm(),
             max_month: end.to_yyyy_mm(),
+        }
+    }
+
+    /// Returns the allowed query date range for this game in `YYYY-MM-DD` format.
+    ///
+    /// The max date is capped to current UTC date for active fifth-term games.
+    pub fn query_date_range(self) -> LotteryGameDateQueryRange {
+        let (start, end) = game_query_date_bounds(self);
+        LotteryGameDateQueryRange {
+            min_date: start.to_yyyy_mm_dd(),
+            max_date: end.to_yyyy_mm_dd(),
         }
     }
 

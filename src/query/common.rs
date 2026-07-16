@@ -1,4 +1,4 @@
-use crate::rule::query_date_range_for_game;
+use crate::rule::{query_date_range_for_game, query_date_range_for_game_with_sources};
 use crate::{DownloadError, HistoryDrawQuery, LotteryGame};
 
 /// Represents a year-month pair for date range queries.
@@ -39,6 +39,64 @@ impl YearMonth {
 
     pub(crate) fn to_yyyy_mm(self) -> String {
         format!("{:04}-{:02}", self.year, self.month)
+    }
+}
+
+/// Represents a year-month-day triple for date range queries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct YearMonthDay {
+    pub(crate) year: i32,
+    pub(crate) month: u8,
+    pub(crate) day: u8,
+}
+
+impl YearMonthDay {
+    pub(crate) const fn new(year: i32, month: u8, day: u8) -> Self {
+        Self { year, month, day }
+    }
+
+    pub(crate) fn parse_yyyy_mm_dd(value: &str) -> Result<Self, DownloadError> {
+        let trimmed = value.trim();
+        let mut parts = trimmed.split('-');
+        let year = parts
+            .next()
+            .ok_or_else(|| std::io::Error::other("date must be in YYYY-MM-DD format"))?
+            .parse::<i32>()
+            .map_err(|_| std::io::Error::other("date year must be a valid number"))?;
+        let month = parts
+            .next()
+            .ok_or_else(|| std::io::Error::other("date must be in YYYY-MM-DD format"))?
+            .parse::<u8>()
+            .map_err(|_| std::io::Error::other("date month must be a valid number"))?;
+        let day = parts
+            .next()
+            .ok_or_else(|| std::io::Error::other("date must be in YYYY-MM-DD format"))?
+            .parse::<u8>()
+            .map_err(|_| std::io::Error::other("date day must be a valid number"))?;
+
+        if parts.next().is_some() {
+            return Err(std::io::Error::other("date must be in YYYY-MM-DD format").into());
+        }
+        if !(1..=12).contains(&month) {
+            return Err(std::io::Error::other("date month must be between 01 and 12").into());
+        }
+        let max_day = days_in_month(year, month);
+        if day == 0 || day > max_day {
+            return Err(std::io::Error::other(format!(
+                "date day must be between 01 and {max_day:02}"
+            ))
+            .into());
+        }
+
+        Ok(Self::new(year, month, day))
+    }
+
+    pub(crate) fn to_yyyy_mm_dd(self) -> String {
+        format!("{:04}-{:02}-{:02}", self.year, self.month, self.day)
+    }
+
+    pub(crate) fn to_year_month(self) -> YearMonth {
+        YearMonth::new(self.year, self.month)
     }
 }
 
@@ -144,6 +202,65 @@ pub(crate) fn game_query_month_bounds(game: LotteryGame) -> (YearMonth, YearMont
 
     (start, end)
 }
+
+pub(crate) fn game_query_date_bounds(game: LotteryGame) -> (YearMonthDay, YearMonthDay) {
+    let date_range = query_date_range_for_game(game);
+    let start = YearMonthDay::new(date_range.start_year, date_range.start_month, date_range.start_day);
+
+    let end = match (date_range.end_year, date_range.end_month, date_range.end_day) {
+        (Some(year), Some(month), Some(day)) => {
+            // Discontinued game: use the end date as-is
+            YearMonthDay::new(year, month, day)
+        }
+        (None, None, None) => {
+            // Active game: cap to current date (don't allow future queries)
+            let now = time::OffsetDateTime::now_utc();
+            YearMonthDay::new(now.year(), u8::from(now.month()), now.day())
+        }
+        _ => unreachable!(),
+    };
+
+    (start, end)
+}
+
+pub(crate) fn game_query_date_bounds_for_local(game: LotteryGame) -> (YearMonthDay, YearMonthDay) {
+    let date_ranges = query_date_range_for_game_with_sources(game);
+    let local_range = date_ranges.local;
+    let start = YearMonthDay::new(local_range.start_year, local_range.start_month, local_range.start_day);
+
+    let end = match (local_range.end_year, local_range.end_month, local_range.end_day) {
+        (Some(year), Some(month), Some(day)) => {
+            YearMonthDay::new(year, month, day)
+        }
+        (None, None, None) => {
+            let now = time::OffsetDateTime::now_utc();
+            YearMonthDay::new(now.year(), u8::from(now.month()), now.day())
+        }
+        _ => unreachable!(),
+    };
+
+    (start, end)
+}
+
+pub(crate) fn game_query_date_bounds_for_remote(game: LotteryGame) -> (YearMonthDay, YearMonthDay) {
+    let date_ranges = query_date_range_for_game_with_sources(game);
+    let remote_range = date_ranges.remote;
+    let start = YearMonthDay::new(remote_range.start_year, remote_range.start_month, remote_range.start_day);
+
+    let end = match (remote_range.end_year, remote_range.end_month, remote_range.end_day) {
+        (Some(year), Some(month), Some(day)) => {
+            YearMonthDay::new(year, month, day)
+        }
+        (None, None, None) => {
+            let now = time::OffsetDateTime::now_utc();
+            YearMonthDay::new(now.year(), u8::from(now.month()), now.day())
+        }
+        _ => unreachable!(),
+    };
+
+    (start, end)
+}
+
 
 fn ensure_period_year_in_range(
     game: LotteryGame,
