@@ -228,52 +228,226 @@ fn check_out_of_range_months(data_dir: &PathBuf, game: LotteryGame) -> Result<()
     Ok(())
 }
 
+// ===== GRANULAR PARITY TESTS =====
+
 #[test]
-#[ignore = "network-dependent parity check"]
-fn local_remote_boundary_and_out_of_range_match() {
+#[ignore = "network-dependent granular boundary check"]
+fn discontinued_game_boundary_before_start() {
     let data_dir = default_output_dir();
-    let mut checked_boundary_months: usize = 0;
-    let mut boundary_failures = Vec::new();
-    let mut out_of_range_failures = Vec::new();
+    let games = [
+        (LotteryGame::Lotto38M6, "2006-06"),
+        (LotteryGame::Lotto638, "2006-06"),
+        (LotteryGame::TicTacToe, "2008-12"),
+        (LotteryGame::Lotto1224, "2018-03"),
+        (LotteryGame::Lotto740, "2015-04"),
+    ];
 
-    for game in LotteryGame::ALL {
-        let range = game.query_month_range();
-        let mut boundary_months = Vec::new();
-        boundary_months.push(range.min_month.clone());
-        boundary_months.extend(effective_end_boundary_months(&range));
-
-        for month in &boundary_months {
-            checked_boundary_months += 1;
-            if let Err(err) = compare_one_month(&data_dir, game, month) {
-                boundary_failures.push(err);
-            }
-        }
-
-        if let Err(err) = check_out_of_range_months(&data_dir, game) {
-            out_of_range_failures.push(err);
+    let mut failures = Vec::new();
+    for (game, month_before_start) in &games {
+        if let Err(err) = compare_one_month(&data_dir, *game, month_before_start) {
+            failures.push(format!(
+                "{}: {} (expected: empty)",
+                game.metadata().display_name,
+                err
+            ));
         }
     }
 
-    println!("checked_boundary_months={checked_boundary_months}");
-    println!("boundary_failures={}", boundary_failures.len());
-    println!("out_of_range_failures={}", out_of_range_failures.len());
-
-    if !boundary_failures.is_empty() {
-        println!("---- boundary failure sample (up to 20) ----");
-        for entry in boundary_failures.iter().take(20) {
+    if !failures.is_empty() {
+        for entry in &failures {
             println!("{entry}");
         }
     }
+    assert!(failures.is_empty(), "boundary before start check failed");
+}
 
-    if !out_of_range_failures.is_empty() {
-        println!("---- out-of-range failure sample (up to 20) ----");
-        for entry in out_of_range_failures.iter().take(20) {
-            println!("{entry}");
+#[test]
+#[ignore = "network-dependent granular start month check"]
+fn discontinued_game_start_month_matches() {
+    let data_dir = default_output_dir();
+    let games = [
+        (LotteryGame::Lotto38M6, "2007-07"),
+        (LotteryGame::Lotto638, "2007-07"),
+        (LotteryGame::TicTacToe, "2009-02"),
+        (LotteryGame::Lotto1224, "2018-04"),
+        (LotteryGame::Lotto740, "2015-06"),
+    ];
+
+    let mut failures = Vec::new();
+    for (game, start_month) in &games {
+        if let Err(err) = compare_one_month(&data_dir, *game, start_month) {
+            failures.push(format!("{}: {}", game.metadata().display_name, err));
         }
     }
 
+    if !failures.is_empty() {
+        for entry in &failures {
+            println!("{entry}");
+        }
+    }
+    assert!(failures.is_empty(), "start month parity check failed");
+}
+
+#[test]
+#[ignore = "network-dependent granular end month check"]
+fn discontinued_game_end_month_matches() {
+    let data_dir = default_output_dir();
+    let games = [
+        (LotteryGame::Lotto38M6, "2023-12"),
+        (LotteryGame::TicTacToe, "2013-12"),
+        (LotteryGame::Lotto1224, "2023-12"),
+        (LotteryGame::Lotto740, "2019-12"),
+    ];
+
+    let mut failures = Vec::new();
+    for (game, end_month) in &games {
+        if let Err(err) = compare_one_month(&data_dir, *game, end_month) {
+            failures.push(format!("{}: {}", game.metadata().display_name, err));
+        }
+    }
+
+    if !failures.is_empty() {
+        for entry in &failures {
+            println!("{entry}");
+        }
+    }
+    assert!(failures.is_empty(), "end month parity check failed");
+}
+
+#[test]
+#[ignore = "network-dependent granular boundary check"]
+fn discontinued_game_boundary_after_end() {
+    let data_dir = default_output_dir();
+    let games = [
+        (LotteryGame::Lotto38M6, "2024-01"),
+        (LotteryGame::TicTacToe, "2014-01"),
+        (LotteryGame::Lotto1224, "2024-01"),
+        (LotteryGame::Lotto740, "2020-01"),
+    ];
+
+    let mut failures = Vec::new();
+    for (game, month_after_end) in &games {
+        if let Err(err) = compare_one_month(&data_dir, *game, month_after_end) {
+            failures.push(format!(
+                "{}: {} (expected: empty)",
+                game.metadata().display_name,
+                err
+            ));
+        }
+    }
+
+    if !failures.is_empty() {
+        for entry in &failures {
+            println!("{entry}");
+        }
+    }
+    assert!(failures.is_empty(), "boundary after end check failed");
+}
+
+#[test]
+#[ignore = "network-dependent granular boundary check"]
+fn active_game_boundary_before_start() {
+    let data_dir = default_output_dir();
+    let games = [
+        (LotteryGame::SuperLotto638, "2007-12"),
+        (LotteryGame::Lotto649, "2006-12"),
+        (LotteryGame::Daily539, "2006-12"),
+        (LotteryGame::Lotto3D, "2006-12"),
+        (LotteryGame::Lotto4D, "2006-12"),
+        (LotteryGame::Lotto49M6, "2006-12"),
+        (LotteryGame::Lotto39M5, "2009-12"),
+        (LotteryGame::BingoBingo, "2023-12"),
+    ];
+
+    let mut failures = Vec::new();
+    for (game, month_before_start) in &games {
+        if let Err(err) = compare_one_month(&data_dir, *game, month_before_start) {
+            failures.push(format!(
+                "{}: {} (expected: empty)",
+                game.metadata().display_name,
+                err
+            ));
+        }
+    }
+
+    if !failures.is_empty() {
+        for entry in &failures {
+            println!("{entry}");
+        }
+    }
     assert!(
-        boundary_failures.is_empty() && out_of_range_failures.is_empty(),
-        "local/remote parity mismatch found"
+        failures.is_empty(),
+        "active game boundary before start check failed"
+    );
+}
+
+#[test]
+#[ignore = "network-dependent granular start month check"]
+fn active_game_start_month_matches() {
+    let data_dir = default_output_dir();
+    let games = [
+        (LotteryGame::SuperLotto638, "2008-01"),
+        (LotteryGame::Lotto649, "2007-01"),
+        (LotteryGame::Daily539, "2007-01"),
+        (LotteryGame::Lotto3D, "2007-01"),
+        (LotteryGame::Lotto4D, "2007-01"),
+        (LotteryGame::Lotto49M6, "2007-01"),
+        (LotteryGame::Lotto39M5, "2010-01"),
+        (LotteryGame::BingoBingo, "2024-01"),
+    ];
+
+    let mut failures = Vec::new();
+    for (game, start_month) in &games {
+        if let Err(err) = compare_one_month(&data_dir, *game, start_month) {
+            failures.push(format!("{}: {}", game.metadata().display_name, err));
+        }
+    }
+
+    if !failures.is_empty() {
+        for entry in &failures {
+            println!("{entry}");
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "active game start month parity check failed"
+    );
+}
+
+#[test]
+#[ignore = "network-dependent granular recent data check"]
+fn active_game_two_months_ago_matches() {
+    let data_dir = default_output_dir();
+    let games = [
+        LotteryGame::SuperLotto638,
+        LotteryGame::Lotto649,
+        LotteryGame::Daily539,
+        LotteryGame::Lotto3D,
+        LotteryGame::Lotto4D,
+        LotteryGame::Lotto49M6,
+        LotteryGame::Lotto39M5,
+        LotteryGame::BingoBingo,
+    ];
+
+    let now = utc_current_yyyy_mm();
+    let (year, month) = parse_yyyy_mm(&now);
+    let (two_months_ago_y, two_months_ago_m) = shift_month(year, month, -2);
+    let two_months_ago = format!("{two_months_ago_y:04}-{two_months_ago_m:02}");
+
+    let mut failures = Vec::new();
+    for game in &games {
+        if let Err(err) = compare_one_month(&data_dir, *game, &two_months_ago) {
+            failures.push(format!("{}: {}", game.metadata().display_name, err));
+        }
+    }
+
+    if !failures.is_empty() {
+        for entry in &failures {
+            println!("{entry}");
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "active game two months ago parity check failed"
     );
 }
