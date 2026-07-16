@@ -1,9 +1,12 @@
+pub(crate) mod common;
+mod local;
+mod remote;
+
 use std::path::Path;
 
 use crate::{DownloadError, HistoryDrawPage, HistoryDrawQuery, LotteryGame};
 
-pub(crate) mod local;
-pub(crate) mod remote;
+pub(crate) use remote::remote_query_param_support;
 
 /// Query historical lottery draw results from locally downloaded data.
 ///
@@ -20,17 +23,6 @@ pub(crate) mod remote;
 ///
 /// # Errors
 /// Returns [`DownloadError`] if files cannot be read or parsed.
-///
-/// # Example
-/// ```ignore
-/// use taiwan_lottery::{query_history_draw, HistoryDrawQuery, LotteryGame};
-///
-/// let query = HistoryDrawQuery::by_month("2023-12");
-/// let results = query_history_draw("./data", LotteryGame::Lotto649, query)?;
-/// for item in results.items {
-///     println!("Period {}: {:?}", item.period, item.numbers.base.numbers);
-/// }
-/// ```
 pub fn query_history_draw(
     output_dir: impl AsRef<Path>,
     game: LotteryGame,
@@ -53,14 +45,6 @@ pub fn query_history_draw(
 ///
 /// # Errors
 /// Returns [`DownloadError`] if the API request or response parsing fails.
-///
-/// # Example
-/// ```ignore
-/// use taiwan_lottery::{query_history_draw_from_taiwan_lottery, HistoryDrawQuery, LotteryGame};
-///
-/// let query = HistoryDrawQuery::by_month("2026-01");
-/// let results = query_history_draw_from_taiwan_lottery(LotteryGame::Lotto649, query)?;
-/// ```
 pub fn query_history_draw_from_taiwan_lottery(
     game: LotteryGame,
     query: HistoryDrawQuery,

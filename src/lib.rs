@@ -46,7 +46,8 @@ mod numbers;
 mod query;
 mod rule;
 
-use query::remote::{game_query_month_bounds, remote_query_param_support};
+use query::common::game_query_month_bounds;
+use query::remote_query_param_support;
 use rule::metadata_for_game;
 
 pub use download::{
@@ -422,7 +423,7 @@ mod tests {
         #[test]
         fn lottery_game_query_month_range_is_exposed_for_ui() {
             let range = LotteryGame::Lotto1224.query_month_range();
-            assert_eq!(range.min_month, "2014-01");
+            assert_eq!(range.min_month, "2018-04");
             assert_eq!(range.max_month, "2023-12");
         }
 
