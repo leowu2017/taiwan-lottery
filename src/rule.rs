@@ -1,37 +1,66 @@
 use crate::{LotteryGame, LotteryGameMetadata, LotteryGameNumberRule};
 
-/// Query date range for a lottery game.
-/// start: (year, month) of the first available draw
-/// end: (year, month) of the last available draw; if None, game is active (querying up to current month)
+/// Query date range for a lottery game (includes day precision).
+/// start: (year, month, day) of the first available draw
+/// end: (year, month, day) of the last available draw; if None, game is active (querying up to current month)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct GameQueryDateRange {
     pub(crate) start_year: i32,
     pub(crate) start_month: u8,
+    pub(crate) start_day: u8,
     pub(crate) end_year: Option<i32>,
     pub(crate) end_month: Option<u8>,
+    pub(crate) end_day: Option<u8>,
+}
+
+/// Query date range with separate local (D423F) and remote (Taiwan Lottery API) ranges.
+/// Used when the two sources have different coverage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct GameQueryDateRangeWithSources {
+    pub(crate) local: GameQueryDateRange,
+    pub(crate) remote: GameQueryDateRange,
 }
 
 impl GameQueryDateRange {
-    pub(crate) const fn active(start_year: i32, start_month: u8) -> Self {
+    pub(crate) const fn active(start_year: i32, start_month: u8, start_day: u8) -> Self {
         Self {
             start_year,
             start_month,
+            start_day,
             end_year: None,
             end_month: None,
+            end_day: None,
         }
     }
 
     pub(crate) const fn discontinued(
         start_year: i32,
         start_month: u8,
+        start_day: u8,
         end_year: i32,
         end_month: u8,
+        end_day: u8,
     ) -> Self {
         Self {
             start_year,
             start_month,
+            start_day,
             end_year: Some(end_year),
             end_month: Some(end_month),
+            end_day: Some(end_day),
+        }
+    }
+}
+
+impl GameQueryDateRangeWithSources {
+    pub(crate) const fn new(local: GameQueryDateRange, remote: GameQueryDateRange) -> Self {
+        Self { local, remote }
+    }
+
+    pub(crate) const fn same(range: GameQueryDateRange) -> Self {
+        Self {
+            local: range,
+            remote: range,
         }
     }
 }
@@ -308,19 +337,70 @@ pub(crate) const fn metadata_for_game(game: LotteryGame) -> LotteryGameMetadata 
 
 pub(crate) const fn query_date_range_for_game(game: LotteryGame) -> GameQueryDateRange {
     match game {
-        LotteryGame::SuperLotto638 => GameQueryDateRange::active(2008, 1),
-        LotteryGame::Lotto649 => GameQueryDateRange::active(2007, 1),
-        LotteryGame::Daily539 => GameQueryDateRange::active(2007, 1),
-        LotteryGame::Lotto3D => GameQueryDateRange::active(2007, 1),
-        LotteryGame::Lotto4D => GameQueryDateRange::active(2007, 1),
-        LotteryGame::Lotto49M6 => GameQueryDateRange::active(2007, 1),
-        LotteryGame::Lotto39M5 => GameQueryDateRange::active(2010, 9),
-        LotteryGame::BingoBingo => GameQueryDateRange::active(2024, 1),
-        LotteryGame::Lotto38M6 => GameQueryDateRange::discontinued(2007, 1, 2023, 12),
-        LotteryGame::Lotto638 => GameQueryDateRange::discontinued(2007, 1, 2008, 1),
-        LotteryGame::TicTacToe => GameQueryDateRange::discontinued(2009, 7, 2013, 12),
-        LotteryGame::Lotto1224 => GameQueryDateRange::discontinued(2018, 4, 2023, 12),
-        LotteryGame::Lotto740 => GameQueryDateRange::discontinued(2015, 4, 2019, 4),
+        LotteryGame::SuperLotto638 => GameQueryDateRange::active(2008, 1, 24),
+        LotteryGame::Lotto649 => GameQueryDateRange::active(2007, 1, 2),
+        LotteryGame::Daily539 => GameQueryDateRange::active(2007, 1, 1),
+        LotteryGame::Lotto3D => GameQueryDateRange::active(2007, 1, 1),
+        LotteryGame::Lotto4D => GameQueryDateRange::active(2007, 1, 1),
+        LotteryGame::Lotto49M6 => GameQueryDateRange::active(2007, 1, 2),
+        LotteryGame::Lotto39M5 => GameQueryDateRange::active(2010, 9, 6),
+        LotteryGame::BingoBingo => GameQueryDateRange::active(2024, 1, 1),
+        LotteryGame::Lotto38M6 => GameQueryDateRange::discontinued(2007, 1, 1, 2023, 12, 28),
+        LotteryGame::Lotto638 => GameQueryDateRange::discontinued(2007, 1, 1, 2008, 1, 21),
+        LotteryGame::TicTacToe => GameQueryDateRange::discontinued(2009, 7, 27, 2013, 12, 31),
+        LotteryGame::Lotto1224 => GameQueryDateRange::discontinued(2018, 4, 23, 2023, 12, 30),
+        LotteryGame::Lotto740 => GameQueryDateRange::discontinued(2015, 4, 22, 2019, 4, 27),
+    }
+}
+
+pub(crate) const fn query_date_range_for_game_with_sources(
+    game: LotteryGame,
+) -> GameQueryDateRangeWithSources {
+    // Based on GAME_MAPPING.md
+    // Most games have identical local (D423F) and remote (Taiwan Lottery API) ranges.
+    // BingoBingo is the exception: D423F has data from 2008-04-30, remote API only from 2024-01-01.
+    match game {
+        LotteryGame::SuperLotto638 => {
+            GameQueryDateRangeWithSources::same(GameQueryDateRange::active(2008, 1, 24))
+        }
+        LotteryGame::Lotto649 => {
+            GameQueryDateRangeWithSources::same(GameQueryDateRange::active(2007, 1, 2))
+        }
+        LotteryGame::Daily539 => {
+            GameQueryDateRangeWithSources::same(GameQueryDateRange::active(2007, 1, 1))
+        }
+        LotteryGame::Lotto3D => {
+            GameQueryDateRangeWithSources::same(GameQueryDateRange::active(2007, 1, 1))
+        }
+        LotteryGame::Lotto4D => {
+            GameQueryDateRangeWithSources::same(GameQueryDateRange::active(2007, 1, 1))
+        }
+        LotteryGame::Lotto49M6 => {
+            GameQueryDateRangeWithSources::same(GameQueryDateRange::active(2007, 1, 2))
+        }
+        LotteryGame::Lotto39M5 => {
+            GameQueryDateRangeWithSources::same(GameQueryDateRange::active(2010, 9, 6))
+        }
+        // BingoBingo: Local D423F starts 2008-04-30, Remote API starts 2024-01-01
+        LotteryGame::BingoBingo => GameQueryDateRangeWithSources::new(
+            GameQueryDateRange::active(2008, 4, 30),
+            GameQueryDateRange::active(2024, 1, 1),
+        ),
+        LotteryGame::Lotto38M6 => GameQueryDateRangeWithSources::same(
+            GameQueryDateRange::discontinued(2007, 1, 1, 2023, 12, 28),
+        ),
+        LotteryGame::Lotto638 => GameQueryDateRangeWithSources::same(
+            GameQueryDateRange::discontinued(2007, 1, 1, 2008, 1, 21),
+        ),
+        LotteryGame::TicTacToe => GameQueryDateRangeWithSources::same(
+            GameQueryDateRange::discontinued(2009, 7, 27, 2013, 12, 31),
+        ),
+        LotteryGame::Lotto1224 => GameQueryDateRangeWithSources::same(
+            GameQueryDateRange::discontinued(2018, 4, 23, 2023, 12, 30),
+        ),
+        LotteryGame::Lotto740 => GameQueryDateRangeWithSources::same(
+            GameQueryDateRange::discontinued(2015, 4, 22, 2019, 4, 27),
+        ),
     }
 }
 
