@@ -356,7 +356,6 @@ fn active_game_boundary_before_start() {
         (LotteryGame::Lotto4D, "2006-12"),
         (LotteryGame::Lotto49M6, "2006-12"),
         (LotteryGame::Lotto39M5, "2009-12"),
-        (LotteryGame::BingoBingo, "2023-12"),
     ];
 
     let mut failures = Vec::new();
@@ -393,7 +392,6 @@ fn active_game_start_month_matches() {
         (LotteryGame::Lotto4D, "2007-01"),
         (LotteryGame::Lotto49M6, "2007-01"),
         (LotteryGame::Lotto39M5, "2010-01"),
-        (LotteryGame::BingoBingo, "2024-01"),
     ];
 
     let mut failures = Vec::new();
@@ -426,7 +424,6 @@ fn active_game_two_months_ago_matches() {
         LotteryGame::Lotto4D,
         LotteryGame::Lotto49M6,
         LotteryGame::Lotto39M5,
-        LotteryGame::BingoBingo,
     ];
 
     let now = utc_current_yyyy_mm();
@@ -449,5 +446,125 @@ fn active_game_two_months_ago_matches() {
     assert!(
         failures.is_empty(),
         "active game two months ago parity check failed"
+    );
+}
+
+fn compare_one_date(data_dir: &PathBuf, game: LotteryGame, date: &str) -> Result<(), String> {
+    let query = HistoryDrawQuery::by_open_date(date.to_string());
+    let local = execute_query("local", query_history_draw(data_dir, game, query.clone()))?;
+    let remote = execute_query(
+        "remote",
+        query_history_draw_from_taiwan_lottery(game, query),
+    )?;
+
+    match (local, remote) {
+        (QueryOutcome::Data(lhs), QueryOutcome::Data(rhs)) => {
+            if lhs == rhs {
+                Ok(())
+            } else {
+                let periods: BTreeSet<String> = lhs.keys().chain(rhs.keys()).cloned().collect();
+                for period in periods {
+                    let left = lhs.get(&period);
+                    let right = rhs.get(&period);
+                    if left != right {
+                        return Err(format!(
+                            "in-range mismatch game={} date={} period={} local={left:?} remote={right:?}",
+                            game.metadata().display_name,
+                            date,
+                            period
+                        ));
+                    }
+                }
+
+                Err(format!(
+                    "in-range mismatch game={} date={} local_count={} remote_count={}",
+                    game.metadata().display_name,
+                    date,
+                    lhs.len(),
+                    rhs.len()
+                ))
+            }
+        }
+        (QueryOutcome::Empty, QueryOutcome::Empty) => Ok(()),
+        (QueryOutcome::Rejected, QueryOutcome::Rejected) => Ok(()),
+        (left, right) => Err(format!(
+            "in-range outcome mismatch game={} date={} local={} remote={}",
+            game.metadata().display_name,
+            date,
+            outcome_label(&left),
+            outcome_label(&right)
+        )),
+    }
+}
+
+#[test]
+#[ignore = "network-dependent BingoBingo day-level parity check"]
+fn bingo_bingo_boundary_before_local_start() {
+    let data_dir = default_output_dir();
+    let date_before_start = "2008-04-29";
+
+    let mut failures = Vec::new();
+    if let Err(err) = compare_one_date(&data_dir, LotteryGame::BingoBingo, date_before_start) {
+        failures.push(format!(
+            "BingoBingo: {} (expected: empty for local, may differ for remote)",
+            err
+        ));
+    }
+
+    if !failures.is_empty() {
+        for entry in &failures {
+            println!("{entry}");
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "BingoBingo boundary before local start check failed"
+    );
+}
+
+#[test]
+#[ignore = "network-dependent BingoBingo day-level parity check"]
+fn bingo_bingo_local_start_date_matches() {
+    let data_dir = default_output_dir();
+    // Local range starts 2008-04-30, Remote range starts 2024-01-01
+    // Only test local start date
+    let local_start = "2008-04-30";
+
+    let mut failures = Vec::new();
+    if let Err(err) = compare_one_date(&data_dir, LotteryGame::BingoBingo, local_start) {
+        failures.push(format!("BingoBingo local start: {}", err));
+    }
+
+    if !failures.is_empty() {
+        for entry in &failures {
+            println!("{entry}");
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "BingoBingo local start date parity check failed"
+    );
+}
+
+#[test]
+#[ignore = "network-dependent BingoBingo day-level parity check"]
+fn bingo_bingo_remote_start_date_matches() {
+    let data_dir = default_output_dir();
+    // Remote range starts 2024-01-01 only
+    let remote_start = "2024-01-01";
+
+    let mut failures = Vec::new();
+    if let Err(err) = compare_one_date(&data_dir, LotteryGame::BingoBingo, remote_start) {
+        failures.push(format!("BingoBingo remote start: {}", err));
+    }
+
+    if !failures.is_empty() {
+        for entry in &failures {
+            println!("{entry}");
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "BingoBingo remote start date parity check failed"
     );
 }

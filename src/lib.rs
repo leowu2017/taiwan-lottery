@@ -46,8 +46,10 @@ mod numbers;
 mod query;
 mod rule;
 
-use query::common::game_query_date_bounds;
 use query::common::game_query_month_bounds;
+use query::common::{
+    game_query_date_bounds, game_query_date_bounds_for_local, game_query_date_bounds_for_remote,
+};
 use query::remote_query_param_support;
 use rule::metadata_for_game;
 
@@ -233,6 +235,28 @@ impl LotteryGame {
     /// The max date is capped to current UTC date for active fifth-term games.
     pub fn query_date_range(self) -> LotteryGameDateQueryRange {
         let (start, end) = game_query_date_bounds(self);
+        LotteryGameDateQueryRange {
+            min_date: start.to_yyyy_mm_dd(),
+            max_date: end.to_yyyy_mm_dd(),
+        }
+    }
+
+    /// Returns the allowed query date range for local (D423F) data in `YYYY-MM-DD` format.
+    ///
+    /// This may differ from the remote API range for some games (e.g., BingoBingo).
+    pub fn query_date_range_for_local(self) -> LotteryGameDateQueryRange {
+        let (start, end) = game_query_date_bounds_for_local(self);
+        LotteryGameDateQueryRange {
+            min_date: start.to_yyyy_mm_dd(),
+            max_date: end.to_yyyy_mm_dd(),
+        }
+    }
+
+    /// Returns the allowed query date range for remote (Taiwan Lottery API) data in `YYYY-MM-DD` format.
+    ///
+    /// This may differ from the local data range for some games (e.g., BingoBingo).
+    pub fn query_date_range_for_remote(self) -> LotteryGameDateQueryRange {
+        let (start, end) = game_query_date_bounds_for_remote(self);
         LotteryGameDateQueryRange {
             min_date: start.to_yyyy_mm_dd(),
             max_date: end.to_yyyy_mm_dd(),
