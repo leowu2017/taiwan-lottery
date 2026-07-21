@@ -19,7 +19,12 @@ It exposes:
 - `free_draw_result(...)`: release memory allocated by the draw API.
 - `query_history_draw(...)`: query from downloaded local history files (`output_dir/D423F`).
 - `query_history_draw_from_taiwan_lottery(...)`: query directly from Taiwan Lottery web API.
+- `query_history_draw_with_open_date(...)`: local query variant with optional `open_date` (for Bingo-style day queries).
+- `query_history_draw_from_taiwan_lottery_with_open_date(...)`: remote query variant with optional `open_date`.
 - `lottery_game_query_month_range(...)`: get game-specific query month bounds (`min_month`, `max_month`) in `YYYY-MM`.
+- `lottery_game_query_date_range(...)`: get game-specific query date bounds (`min_date`, `max_date`) in `YYYY-MM-DD`.
+- `lottery_game_query_date_range_for_local(...)`: get local-data date bounds per game.
+- `lottery_game_query_date_range_for_remote(...)`: get remote-data date bounds per game.
 - `lottery_game_metadata(...)`: get display name, rule text, and number-range segments for a game.
 - `lottery_game_metadata_with_language(...)`: same as metadata API, but choose display language explicitly.
 - `free_history_draw_page(...)`: release memory allocated by the two query APIs.
@@ -100,6 +105,7 @@ Query:
 
 - `c/build/query local lotto649 period 115000001 data`
 - `c/build/query remote lotto649 month 2026-01`
+- `c/build/query remote bingo-bingo open-date 2026-01-01`
 
 ## Test Command
 

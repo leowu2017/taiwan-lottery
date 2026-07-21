@@ -66,6 +66,13 @@ typedef struct taiwan_lottery_query_month_range {
 	char* max_month;
 } taiwan_lottery_query_month_range;
 
+typedef struct taiwan_lottery_query_date_range {
+	/* Earliest supported query date in YYYY-MM-DD. */
+	char* min_date;
+	/* Latest supported query date in YYYY-MM-DD. */
+	char* max_date;
+} taiwan_lottery_query_date_range;
+
 typedef struct taiwan_lottery_game_number_rule {
 	/* Segment name such as main, bonus, super, or zone_1. */
 	char* name;
@@ -114,6 +121,16 @@ int query_history_draw(
 	const char* end_month,
 	taiwan_lottery_history_draw_page** out_page);
 
+/* Query history draw data from local files with optional open_date support. */
+int query_history_draw_with_open_date(
+	const char* output_dir,
+	int game,
+	const char* period,
+	const char* month,
+	const char* end_month,
+	const char* open_date,
+	taiwan_lottery_history_draw_page** out_page);
+
 /* Query history draw data directly from Taiwan Lottery web APIs. */
 int query_history_draw_from_taiwan_lottery(
 	int game,
@@ -122,10 +139,34 @@ int query_history_draw_from_taiwan_lottery(
 	const char* end_month,
 	taiwan_lottery_history_draw_page** out_page);
 
+/* Query history draw data from remote APIs with optional open_date support. */
+int query_history_draw_from_taiwan_lottery_with_open_date(
+	int game,
+	const char* period,
+	const char* month,
+	const char* end_month,
+	const char* open_date,
+	taiwan_lottery_history_draw_page** out_page);
+
 /* Get supported query month bounds for one game. Caller must free out_range. */
 int lottery_game_query_month_range(
 	int game,
 	taiwan_lottery_query_month_range** out_range);
+
+/* Get supported query date bounds for one game. Caller must free out_range. */
+int lottery_game_query_date_range(
+	int game,
+	taiwan_lottery_query_date_range** out_range);
+
+/* Get supported local-data query date bounds for one game. Caller must free out_range. */
+int lottery_game_query_date_range_for_local(
+	int game,
+	taiwan_lottery_query_date_range** out_range);
+
+/* Get supported remote-data query date bounds for one game. Caller must free out_range. */
+int lottery_game_query_date_range_for_remote(
+	int game,
+	taiwan_lottery_query_date_range** out_range);
 
 /* Get display metadata and number-rule segments for one game. Caller must free out_metadata. */
 int lottery_game_metadata(
@@ -151,6 +192,8 @@ int lottery_game_remote_query_param_support(
 void free_history_draw_page(taiwan_lottery_history_draw_page* page);
 /* Release memory returned by lottery_game_query_month_range. */
 void free_lottery_game_query_month_range(taiwan_lottery_query_month_range* range);
+/* Release memory returned by lottery_game_query_date_range* helpers. */
+void free_lottery_game_query_date_range(taiwan_lottery_query_date_range* range);
 /* Release memory returned by lottery_game_metadata. */
 void free_lottery_game_metadata(taiwan_lottery_game_metadata* metadata);
 

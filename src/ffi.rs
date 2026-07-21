@@ -15,7 +15,10 @@ mod ffi_free;
 mod ffi_status;
 
 use ffi_args::{build_history_draw_query, c_str_arg_to_string, int_to_display_language, int_to_lottery_game};
-use ffi_convert::{draw_result_to_c, history_page_to_c, lottery_game_metadata_to_c, lottery_game_query_range_to_c};
+use ffi_convert::{
+    draw_result_to_c, history_page_to_c, lottery_game_date_query_range_to_c,
+    lottery_game_metadata_to_c, lottery_game_query_range_to_c,
+};
 use ffi_free::{free_draw_numbers, free_history_draw_item};
 use ffi_status::{map_download_result, DownloadStatus};
 
@@ -58,6 +61,12 @@ pub struct HistoryDrawPageC {
 pub struct LotteryGameQueryRangeC {
     min_month: *mut c_char,
     max_month: *mut c_char,
+}
+
+#[repr(C)]
+pub struct LotteryGameDateQueryRangeC {
+    min_date: *mut c_char,
+    max_date: *mut c_char,
 }
 
 #[repr(C)]
@@ -193,7 +202,39 @@ pub extern "C" fn query_history_draw_ffi(
         Ok(value) => value,
         Err(status) => return status,
     };
-    let query = match build_history_draw_query(period, month, end_month) {
+    let query = match build_history_draw_query(period, month, end_month, std::ptr::null()) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    let result = query_history_draw(out_dir, game, query);
+    map_history_result_to_struct_status(result, out_page)
+}
+
+#[unsafe(export_name = "query_history_draw_with_open_date")]
+pub extern "C" fn query_history_draw_with_open_date_ffi(
+    output_dir: *const c_char,
+    game: i32,
+    period: *const c_char,
+    month: *const c_char,
+    end_month: *const c_char,
+    open_date: *const c_char,
+    out_page: *mut *mut HistoryDrawPageC,
+) -> i32 {
+    let out_dir = match c_str_arg_to_string(
+        output_dir,
+        DownloadStatus::NullPath as i32,
+        DownloadStatus::InvalidPathUtf8 as i32,
+    ) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    let game = match int_to_lottery_game(game) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+    let query = match build_history_draw_query(period, month, end_month, open_date) {
         Ok(value) => value,
         Err(status) => return status,
     };
@@ -214,7 +255,29 @@ pub extern "C" fn query_history_draw_from_taiwan_lottery_ffi(
         Ok(value) => value,
         Err(status) => return status,
     };
-    let query = match build_history_draw_query(period, month, end_month) {
+    let query = match build_history_draw_query(period, month, end_month, std::ptr::null()) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    let result = query_history_draw_from_taiwan_lottery(game, query);
+    map_history_result_to_struct_status(result, out_page)
+}
+
+#[unsafe(export_name = "query_history_draw_from_taiwan_lottery_with_open_date")]
+pub extern "C" fn query_history_draw_from_taiwan_lottery_with_open_date_ffi(
+    game: i32,
+    period: *const c_char,
+    month: *const c_char,
+    end_month: *const c_char,
+    open_date: *const c_char,
+    out_page: *mut *mut HistoryDrawPageC,
+) -> i32 {
+    let game = match int_to_lottery_game(game) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+    let query = match build_history_draw_query(period, month, end_month, open_date) {
         Ok(value) => value,
         Err(status) => return status,
     };
@@ -239,6 +302,75 @@ pub extern "C" fn lottery_game_query_month_range_ffi(
 
     let range = game.query_month_range();
     let c_range = lottery_game_query_range_to_c(range);
+    unsafe {
+        *out_range = Box::into_raw(c_range);
+    }
+
+    DownloadStatus::Success as i32
+}
+
+#[unsafe(export_name = "lottery_game_query_date_range")]
+pub extern "C" fn lottery_game_query_date_range_ffi(
+    game: i32,
+    out_range: *mut *mut LotteryGameDateQueryRangeC,
+) -> i32 {
+    let game = match int_to_lottery_game(game) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    if out_range.is_null() {
+        return DownloadStatus::NullResultPointer as i32;
+    }
+
+    let range = game.query_date_range();
+    let c_range = lottery_game_date_query_range_to_c(range);
+    unsafe {
+        *out_range = Box::into_raw(c_range);
+    }
+
+    DownloadStatus::Success as i32
+}
+
+#[unsafe(export_name = "lottery_game_query_date_range_for_local")]
+pub extern "C" fn lottery_game_query_date_range_for_local_ffi(
+    game: i32,
+    out_range: *mut *mut LotteryGameDateQueryRangeC,
+) -> i32 {
+    let game = match int_to_lottery_game(game) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    if out_range.is_null() {
+        return DownloadStatus::NullResultPointer as i32;
+    }
+
+    let range = game.query_date_range_for_local();
+    let c_range = lottery_game_date_query_range_to_c(range);
+    unsafe {
+        *out_range = Box::into_raw(c_range);
+    }
+
+    DownloadStatus::Success as i32
+}
+
+#[unsafe(export_name = "lottery_game_query_date_range_for_remote")]
+pub extern "C" fn lottery_game_query_date_range_for_remote_ffi(
+    game: i32,
+    out_range: *mut *mut LotteryGameDateQueryRangeC,
+) -> i32 {
+    let game = match int_to_lottery_game(game) {
+        Ok(value) => value,
+        Err(status) => return status,
+    };
+
+    if out_range.is_null() {
+        return DownloadStatus::NullResultPointer as i32;
+    }
+
+    let range = game.query_date_range_for_remote();
+    let c_range = lottery_game_date_query_range_to_c(range);
     unsafe {
         *out_range = Box::into_raw(c_range);
     }
@@ -392,6 +524,22 @@ pub extern "C" fn free_lottery_game_query_month_range_ffi(range: *mut LotteryGam
     }
     if !range.max_month.is_null() {
         let _ = unsafe { CString::from_raw(range.max_month) };
+    }
+}
+
+#[unsafe(export_name = "free_lottery_game_query_date_range")]
+pub extern "C" fn free_lottery_game_query_date_range_ffi(range: *mut LotteryGameDateQueryRangeC) {
+    if range.is_null() {
+        return;
+    }
+
+    let range = unsafe { Box::from_raw(range) };
+
+    if !range.min_date.is_null() {
+        let _ = unsafe { CString::from_raw(range.min_date) };
+    }
+    if !range.max_date.is_null() {
+        let _ = unsafe { CString::from_raw(range.max_date) };
     }
 }
 

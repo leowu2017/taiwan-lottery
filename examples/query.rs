@@ -9,9 +9,11 @@ fn print_usage(program: &str) {
     eprintln!("  {program} local <game> period <PERIOD> [output_dir]");
     eprintln!("  {program} local <game> month <YYYY-MM> [output_dir]");
     eprintln!("  {program} local <game> month-range <YYYY-MM> <YYYY-MM> [output_dir]");
+    eprintln!("  {program} local <game> open-date <YYYY-MM-DD> [output_dir]");
     eprintln!("  {program} remote <game> period <PERIOD>");
     eprintln!("  {program} remote <game> month <YYYY-MM>");
     eprintln!("  {program} remote <game> month-range <YYYY-MM> <YYYY-MM>");
+    eprintln!("  {program} remote <game> open-date <YYYY-MM-DD>");
     eprintln!("  game: super-lotto638 | lotto649 | daily539 | 3d | 4d | 49m6 | 39m5 | 38m6 | 1224 | 740 | tic-tac-toe | 638 | bingo-bingo");
 }
 
@@ -27,6 +29,7 @@ fn parse_query(mode: &str, args: &[String], value_index: usize) -> Option<Histor
     let value = args.get(value_index)?.clone();
     let query = match mode {
         "period" => HistoryDrawQuery::by_period(value),
+        "open-date" => HistoryDrawQuery::by_open_date(value),
         "month-range" => {
             let end_month = args
                 .get(value_index + 1)
@@ -56,8 +59,12 @@ fn main() {
     };
 
     let query_mode = args[3].as_str();
-    if query_mode != "period" && query_mode != "month" && query_mode != "month-range" {
-        eprintln!("Query mode must be period, month, or month-range");
+    if query_mode != "period"
+        && query_mode != "month"
+        && query_mode != "month-range"
+        && query_mode != "open-date"
+    {
+        eprintln!("Query mode must be period, month, month-range, or open-date");
         print_usage(&program);
         std::process::exit(2);
     }

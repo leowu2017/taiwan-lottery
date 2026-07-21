@@ -3,7 +3,8 @@ use std::os::raw::c_char;
 
 use super::{
     DrawNumbersC, DrawResultC, HistoryDrawItemC, HistoryDrawPageC,
-    LotteryGameMetadataC, LotteryGameNumberRuleC, LotteryGameQueryRangeC, SortedDrawNumbersC,
+    LotteryGameDateQueryRangeC, LotteryGameMetadataC, LotteryGameNumberRuleC,
+    LotteryGameQueryRangeC, SortedDrawNumbersC,
 };
 
 pub(crate) fn history_page_to_c(page: crate::HistoryDrawPage) -> Box<HistoryDrawPageC> {
@@ -29,6 +30,15 @@ pub(crate) fn lottery_game_query_range_to_c(
     Box::new(LotteryGameQueryRangeC {
         min_month: string_to_c_ptr(range.min_month),
         max_month: string_to_c_ptr(range.max_month),
+    })
+}
+
+pub(crate) fn lottery_game_date_query_range_to_c(
+    range: crate::LotteryGameDateQueryRange,
+) -> Box<LotteryGameDateQueryRangeC> {
+    Box::new(LotteryGameDateQueryRangeC {
+        min_date: string_to_c_ptr(range.min_date),
+        max_date: string_to_c_ptr(range.max_date),
     })
 }
 

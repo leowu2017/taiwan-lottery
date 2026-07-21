@@ -10,9 +10,11 @@ static void print_usage(const char *program) {
     fprintf(stderr, "  %s local <game> period <PERIOD> [output_dir]\n", program);
     fprintf(stderr, "  %s local <game> month <YYYY-MM> [output_dir]\n", program);
     fprintf(stderr, "  %s local <game> month-range <YYYY-MM> <YYYY-MM> [output_dir]\n", program);
+    fprintf(stderr, "  %s local <game> open-date <YYYY-MM-DD> [output_dir]\n", program);
     fprintf(stderr, "  %s remote <game> period <PERIOD>\n", program);
     fprintf(stderr, "  %s remote <game> month <YYYY-MM>\n", program);
     fprintf(stderr, "  %s remote <game> month-range <YYYY-MM> <YYYY-MM>\n", program);
+    fprintf(stderr, "  %s remote <game> open-date <YYYY-MM-DD>\n", program);
     fprintf(stderr, "  game: super-lotto638 | lotto649 | daily539 | 3d | 4d | 49m6 | 39m5 | 38m6 | 1224 | 740 | tic-tac-toe | 638 | bingo-bingo\n");
 }
 
@@ -41,6 +43,7 @@ int main(int argc, char **argv) {
     const char *source = argv[1];
     int game = taiwan_lottery_parse_game_arg(argv[2]);
     const char *query_mode = argv[3];
+    int is_open_date = strcmp(query_mode, "open-date") == 0;
     int is_month_range = strcmp(query_mode, "month-range") == 0;
     int value_count = is_month_range ? 2 : 1;
     int status;
@@ -52,8 +55,8 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    if (strcmp(query_mode, "period") != 0 && strcmp(query_mode, "month") != 0 && !is_month_range) {
-        fprintf(stderr, "Query mode must be period, month, or month-range\n");
+    if (strcmp(query_mode, "period") != 0 && strcmp(query_mode, "month") != 0 && !is_month_range && !is_open_date) {
+        fprintf(stderr, "Query mode must be period, month, month-range, or open-date\n");
         print_usage(program);
         return 2;
     }
@@ -68,8 +71,13 @@ int main(int argc, char **argv) {
         const char *period = strcmp(query_mode, "period") == 0 ? argv[4] : NULL;
         const char *month = !period ? argv[4] : NULL;
         const char *end_month = is_month_range ? argv[5] : month;
+        const char *open_date = is_open_date ? argv[4] : NULL;
 
-        status = query_history_draw(output_dir, game, period, month, end_month, &page);
+        if (is_open_date) {
+            status = query_history_draw_with_open_date(output_dir, game, NULL, NULL, NULL, open_date, &page);
+        } else {
+            status = query_history_draw(output_dir, game, period, month, end_month, &page);
+        }
     } else if (strcmp(source, "remote") == 0) {
         if (argc < 4 + value_count) {
             fprintf(stderr, "Missing query value(s) for mode: %s\n", query_mode);
@@ -80,8 +88,20 @@ int main(int argc, char **argv) {
         const char *period = strcmp(query_mode, "period") == 0 ? argv[4] : NULL;
         const char *month = !period ? argv[4] : NULL;
         const char *end_month = is_month_range ? argv[5] : month;
+        const char *open_date = is_open_date ? argv[4] : NULL;
 
-        status = query_history_draw_from_taiwan_lottery(game, period, month, end_month, &page);
+        if (is_open_date) {
+            status = query_history_draw_from_taiwan_lottery_with_open_date(
+                game,
+                NULL,
+                NULL,
+                NULL,
+                open_date,
+                &page
+            );
+        } else {
+            status = query_history_draw_from_taiwan_lottery(game, period, month, end_month, &page);
+        }
     } else {
         print_usage(program);
         return 2;
