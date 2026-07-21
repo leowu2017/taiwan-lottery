@@ -61,16 +61,19 @@ pub(crate) fn build_history_draw_query(
     period: *const c_char,
     month: *const c_char,
     end_month: *const c_char,
+    open_date: *const c_char,
 ) -> Result<HistoryDrawQuery, i32> {
     let period = optional_c_str_arg_to_string(period, DownloadStatus::InvalidQueryUtf8 as i32)?;
     let month = optional_c_str_arg_to_string(month, DownloadStatus::InvalidQueryUtf8 as i32)?;
     let end_month =
         optional_c_str_arg_to_string(end_month, DownloadStatus::InvalidQueryUtf8 as i32)?;
+    let open_date =
+        optional_c_str_arg_to_string(open_date, DownloadStatus::InvalidQueryUtf8 as i32)?;
 
     Ok(HistoryDrawQuery {
         period,
         month,
         end_month,
-        open_date: None,
+        open_date,
     })
 }

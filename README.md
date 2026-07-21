@@ -70,7 +70,7 @@ Example UI query-range lookup:
 use taiwan_lottery::LotteryGame;
 
 let range = LotteryGame::Lotto1224.query_month_range();
-assert_eq!(range.min_month, "2014-01");
+assert_eq!(range.min_month, "2018-04");
 assert_eq!(range.max_month, "2023-12");
 ```
 
@@ -93,6 +93,7 @@ Query:
 
 - `cargo run --example query -- local lotto649 period 115000001 data`
 - `cargo run --example query -- remote lotto649 month 2026-01`
+- `cargo run --example query -- remote bingo-bingo open-date 2026-01-01`
 
 ### C
 
@@ -112,6 +113,9 @@ Split headers by concern:
 Game metadata and query-range helpers are also exposed to C through `query.h`:
 
 - `lottery_game_query_month_range(...)`
+- `lottery_game_query_date_range(...)`
+- `lottery_game_query_date_range_for_local(...)`
+- `lottery_game_query_date_range_for_remote(...)`
 - `lottery_game_metadata(...)`
 - `lottery_game_metadata_with_language(...)`
 
@@ -141,6 +145,7 @@ Query:
 
 - `c/build/query local lotto649 period 115000001 data`
 - `c/build/query remote lotto649 month 2026-01`
+- `c/build/query remote bingo-bingo open-date 2026-01-01`
 
 ## Public APIs
 
@@ -166,6 +171,7 @@ Query:
 - `query_history_draw_from_taiwan_lottery(game, query)`
   Calls the Taiwan Lottery web API directly.
   Draw-order numbers are exposed in `HistoryDrawItem.numbers.base.numbers`, and sorted numbers are exposed in `HistoryDrawItem.numbers.sorted` when available.
+  For Bingo Bingo, `HistoryDrawQuery::by_open_date(...)` is supported.
 
 ### Draw APIs
 
