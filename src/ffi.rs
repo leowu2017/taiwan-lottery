@@ -4,9 +4,8 @@ use std::os::raw::c_char;
 use crate::download::gaze::download_history_draw as download_history_draw_gaze;
 use crate::download::tlc::download_history_draw as download_history_draw_from_taiwan_lottery_tlc;
 use crate::{
-    download_all, download_api_doc, download_dataset, draw_by_game,
-    query_history_draw, query_history_draw_from_taiwan_lottery, DownloadError,
-    LotteryDisplayLanguage,
+    download_all, download_api_doc, download_dataset, draw_by_game, query_history_draw,
+    query_history_draw_from_taiwan_lottery, DownloadError, LotteryDisplayLanguage,
 };
 
 mod ffi_args;
@@ -14,7 +13,9 @@ mod ffi_convert;
 mod ffi_free;
 mod ffi_status;
 
-use ffi_args::{build_history_draw_query, c_str_arg_to_string, int_to_display_language, int_to_lottery_game};
+use ffi_args::{
+    build_history_draw_query, c_str_arg_to_string, int_to_display_language, int_to_lottery_game,
+};
 use ffi_convert::{
     draw_result_to_c, history_page_to_c, lottery_game_date_query_range_to_c,
     lottery_game_metadata_to_c, lottery_game_query_range_to_c,
@@ -600,4 +601,3 @@ fn map_history_result_to_struct_status(
 
     DownloadStatus::Success as i32
 }
-

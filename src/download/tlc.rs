@@ -8,8 +8,7 @@ use super::common::{
     zip_extract_dir_for_file,
 };
 
-const RESULT_DOWNLOAD_URL: &str =
-    "https://api.taiwanlottery.com/TLCAPIWeB/Lottery/ResultDownload";
+const RESULT_DOWNLOAD_URL: &str = "https://api.taiwanlottery.com/TLCAPIWeB/Lottery/ResultDownload";
 const FALLBACK_START_YEAR: i32 = 2007;
 const FALLBACK_MAX_YEAR: i32 = 2200;
 
@@ -83,7 +82,9 @@ fn download_history_draw_with_client(
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .ok_or_else(|| std::io::Error::other("Taiwan Lottery API returned empty download path"))?;
+            .ok_or_else(|| {
+                std::io::Error::other("Taiwan Lottery API returned empty download path")
+            })?;
 
         let file_bytes = client
             .get(download_path)
@@ -113,15 +114,16 @@ fn download_history_draw_with_client(
     }
 
     if saved_files.is_empty() {
-        return Err(std::io::Error::other("no downloadable history draw zip in Taiwan Lottery API").into());
+        return Err(std::io::Error::other(
+            "no downloadable history draw zip in Taiwan Lottery API",
+        )
+        .into());
     }
 
     Ok(saved_files)
 }
 
-pub fn download_history_draw(
-    output_dir: impl AsRef<Path>,
-) -> Result<Vec<PathBuf>, DownloadError> {
+pub fn download_history_draw(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, DownloadError> {
     let output_dir = output_dir.as_ref();
     let client = build_http_client()?;
     download_history_draw_with_client(&client, output_dir)

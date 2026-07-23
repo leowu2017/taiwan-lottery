@@ -181,7 +181,11 @@ pub(crate) fn should_extract_zip(file_name: &str, file_bytes: &[u8]) -> bool {
         || matches!(extension_from_magic_bytes(file_bytes), Some("zip"))
 }
 
-pub(crate) fn zip_extract_dir_for_file(code_dir: &Path, file_name: &str, fallback_index: usize) -> PathBuf {
+pub(crate) fn zip_extract_dir_for_file(
+    code_dir: &Path,
+    file_name: &str,
+    fallback_index: usize,
+) -> PathBuf {
     let stem = Path::new(file_name)
         .file_stem()
         .and_then(|value| value.to_str())

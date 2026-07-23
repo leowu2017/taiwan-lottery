@@ -2,9 +2,8 @@ use std::ffi::CString;
 use std::os::raw::c_char;
 
 use super::{
-    DrawNumbersC, DrawResultC, HistoryDrawItemC, HistoryDrawPageC,
-    LotteryGameDateQueryRangeC, LotteryGameMetadataC, LotteryGameNumberRuleC,
-    LotteryGameQueryRangeC, SortedDrawNumbersC,
+    DrawNumbersC, DrawResultC, HistoryDrawItemC, HistoryDrawPageC, LotteryGameDateQueryRangeC,
+    LotteryGameMetadataC, LotteryGameNumberRuleC, LotteryGameQueryRangeC, SortedDrawNumbersC,
 };
 
 pub(crate) fn history_page_to_c(page: crate::HistoryDrawPage) -> Box<HistoryDrawPageC> {
@@ -52,7 +51,9 @@ fn lottery_game_number_rule_to_c(rule: crate::LotteryGameNumberRule) -> LotteryG
     }
 }
 
-pub(crate) fn lottery_game_metadata_to_c(metadata: crate::LotteryGameMetadata) -> Box<LotteryGameMetadataC> {
+pub(crate) fn lottery_game_metadata_to_c(
+    metadata: crate::LotteryGameMetadata,
+) -> Box<LotteryGameMetadataC> {
     let mut rules = Vec::with_capacity(metadata.number_ranges.len());
     for rule in metadata.number_ranges {
         rules.push(lottery_game_number_rule_to_c(*rule));
