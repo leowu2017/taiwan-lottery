@@ -73,37 +73,6 @@ fn shift_month(year: i32, month: u8, delta: i32) -> (i32, u8) {
     (y, m as u8)
 }
 
-fn prev_month(year: i32, month: u8) -> (i32, u8) {
-    if month == 1 {
-        (year - 1, 12)
-    } else {
-        (year, month - 1)
-    }
-}
-
-fn next_month(year: i32, month: u8) -> (i32, u8) {
-    if month == 12 {
-        (year + 1, 1)
-    } else {
-        (year, month + 1)
-    }
-}
-
-fn effective_end_boundary_months(range: &taiwan_lottery::LotteryGameQueryRange) -> Vec<String> {
-    let current = utc_current_yyyy_mm();
-    if range.max_month != current {
-        return vec![range.max_month.clone()];
-    }
-
-    let (year, month) = parse_yyyy_mm(&range.max_month);
-    let (prev1_y, prev1_m) = shift_month(year, month, -1);
-    let (prev2_y, prev2_m) = shift_month(year, month, -2);
-    vec![
-        format!("{prev1_y:04}-{prev1_m:02}"),
-        format!("{prev2_y:04}-{prev2_m:02}"),
-    ]
-}
-
 fn canonicalize(page: &HistoryDrawPage) -> BTreeMap<String, Vec<i32>> {
     let mut out = BTreeMap::new();
     for item in &page.items {
@@ -188,44 +157,6 @@ fn compare_one_month(data_dir: &PathBuf, game: LotteryGame, month: &str) -> Resu
             outcome_label(&right)
         )),
     }
-}
-
-fn check_out_of_range_months(data_dir: &PathBuf, game: LotteryGame) -> Result<(), String> {
-    let range = game.query_month_range();
-    let (min_year, min_month) = parse_yyyy_mm(&range.min_month);
-    let (max_year, max_month) = parse_yyyy_mm(&range.max_month);
-
-    let candidates = [
-        prev_month(min_year, min_month),
-        next_month(max_year, max_month),
-    ];
-
-    for (year, month) in candidates {
-        let month_text = format!("{year:04}-{month:02}");
-        let query = HistoryDrawQuery::by_month(month_text.clone());
-
-        let local = execute_query("local", query_history_draw(data_dir, game, query.clone()))?;
-        let remote = execute_query(
-            "remote",
-            query_history_draw_from_taiwan_lottery(game, query),
-        )?;
-
-        match (local, remote) {
-            (QueryOutcome::Empty, QueryOutcome::Empty) => {}
-            (QueryOutcome::Rejected, QueryOutcome::Rejected) => {}
-            (left, right) => {
-                return Err(format!(
-                    "out-of-range mismatch game={} month={} local={} remote={}",
-                    game.metadata().display_name,
-                    month_text,
-                    outcome_label(&left),
-                    outcome_label(&right)
-                ));
-            }
-        }
-    }
-
-    Ok(())
 }
 
 // ===== GRANULAR PARITY TESTS =====

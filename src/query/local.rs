@@ -117,8 +117,10 @@ fn collect_history_csv_files(
             let file_matches_year = target_year
                 .map(|value| file_name.contains(&format!("_{value}.csv")))
                 .unwrap_or(false);
-            let path_matches_year = target_year
-                .is_none_or(|value| path.ancestors().any(|ancestor| year_from_path(ancestor) == Some(value)));
+            let path_matches_year = target_year.is_none_or(|value| {
+                path.ancestors()
+                    .any(|ancestor| year_from_path(ancestor) == Some(value))
+            });
 
             // D423F is grouped by year directories; accept either folder-based
             // or filename-based year layout.
@@ -210,11 +212,7 @@ pub(crate) fn query_history_draw_from_downloaded_data(
     let root = resolve_history_data_root(output_dir)?;
 
     let prefixes = history_game_file_prefixes(game);
-    let target_month = if period.is_empty() {
-        Some(month)
-    } else {
-        None
-    };
+    let target_month = if period.is_empty() { Some(month) } else { None };
 
     let mut csv_files = Vec::new();
     collect_history_csv_files(&root, prefixes, target_month, &mut csv_files)?;
@@ -279,7 +277,6 @@ mod tests {
         assert!(should_descend_into_dir(Path::new("/tmp/2024"), Some(2024)));
         assert!(!should_descend_into_dir(Path::new("/tmp/2025"), Some(2024)));
     }
-
 
     #[test]
     fn bingo_and_lotto638_prefixes_are_strictly_separated() {

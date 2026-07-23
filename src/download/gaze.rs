@@ -241,14 +241,16 @@ mod tests {
     #[test]
     fn content_disposition_filename_star_utf8_is_decoded() {
         let header = "attachment; filename*=UTF-8''%E6%B8%AC%E8%A9%A6%E5%A0%B1%E8%A1%A8.pdf";
-        let file_name = crate::download::common::file_name_from_content_disposition(header).expect("must parse filename");
+        let file_name = crate::download::common::file_name_from_content_disposition(header)
+            .expect("must parse filename");
         assert_eq!(file_name, "測試報表.pdf");
     }
 
     #[test]
     fn content_disposition_filename_percent_encoded_is_decoded() {
         let header = "attachment; filename=%E6%B8%AC%E8%A9%A6%E8%B3%87%E6%96%99.xlsx";
-        let file_name = crate::download::common::file_name_from_content_disposition(header).expect("must parse filename");
+        let file_name = crate::download::common::file_name_from_content_disposition(header)
+            .expect("must parse filename");
         assert_eq!(file_name, "測試資料.xlsx");
     }
 
