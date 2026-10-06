@@ -412,7 +412,9 @@ impl HistoryDrawQuery {
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .ok_or_else(|| std::io::Error::other("month is required when period is empty"))?;
+            .ok_or_else(|| {
+                DownloadError::invalid_query("month is required when period is empty")
+            })?;
         let end_month = self
             .end_month
             .as_deref()
@@ -458,7 +460,7 @@ mod tests {
             let err = query
                 .normalized_params()
                 .expect_err("must fail without period or month");
-            assert!(matches!(err, DownloadError::Io(_)));
+            assert!(matches!(err, DownloadError::InvalidQuery(_)));
         }
     }
 

@@ -87,7 +87,9 @@ pub(crate) fn parse_history_draw_page(
     content: &serde_json::Value,
 ) -> Result<HistoryDrawPage, DownloadError> {
     let serde_json::Value::Object(content_obj) = content else {
-        return Err(std::io::Error::other("history response content is not an object").into());
+        return Err(DownloadError::data(
+            "history response content is not an object",
+        ));
     };
 
     let total_size = content_obj
@@ -129,7 +131,7 @@ pub(crate) fn parse_history_draw_page(
                 None
             }
         })
-        .ok_or_else(|| std::io::Error::other("history response does not include draw records"))?;
+        .ok_or_else(|| DownloadError::data("history response does not include draw records"))?;
 
     let mut items = Vec::new();
     for record in records {
@@ -209,15 +211,14 @@ fn fetch_all_pages_from_url(
                 .as_deref()
                 .filter(|value| !value.trim().is_empty())
                 .unwrap_or("unknown history API error");
-            return Err(std::io::Error::other(format!(
+            return Err(DownloadError::data(format!(
                 "Taiwan Lottery history API returned rtCode={}, msg={message}",
                 response.rt_code
-            ))
-            .into());
+            )));
         }
 
         let content = response.content.as_ref().ok_or_else(|| {
-            std::io::Error::other("Taiwan Lottery history API returned empty content")
+            DownloadError::data("Taiwan Lottery history API returned empty content")
         })?;
         let page = parse_history_draw_page(content)?;
 
@@ -296,15 +297,14 @@ fn fetch_bingo_result_by_filter(
                 .as_deref()
                 .filter(|value| !value.trim().is_empty())
                 .unwrap_or("unknown bingo API error");
-            return Err(std::io::Error::other(format!(
+            return Err(DownloadError::data(format!(
                 "Taiwan Lottery bingo API returned rtCode={}, msg={message}",
                 response.rt_code
-            ))
-            .into());
+            )));
         }
 
         let content = response.content.ok_or_else(|| {
-            std::io::Error::other("Taiwan Lottery bingo API returned empty content")
+            DownloadError::data("Taiwan Lottery bingo API returned empty content")
         })?;
         let _total_size = content.total_size;
         if content.bingo_query_result.is_empty() {
@@ -365,10 +365,9 @@ fn query_bingo_history_with_client(
 
     let open_date = query.open_date.as_deref().unwrap_or("").trim();
     if open_date.is_empty() {
-        return Err(std::io::Error::other(
-            "open_date or period is required for BINGO BINGO remote query",
-        )
-        .into());
+        return Err(DownloadError::invalid_query(
+            "open_date or period is required for BINGO BINGO queries",
+        ));
     }
 
     let mut all_items = fetch_bingo_result_by_open_date(client, open_date)?;
@@ -450,7 +449,7 @@ mod tests {
     fn parse_open_date_to_year_month_rejects_invalid_date() {
         let err = parse_open_date_to_year_month("2026-02-30")
             .expect_err("invalid day should be rejected");
-        assert!(matches!(err, DownloadError::Io(_)));
+        assert!(matches!(err, DownloadError::InvalidQuery(_)));
     }
 
     #[test]
@@ -499,7 +498,7 @@ mod tests {
         let query = HistoryDrawQuery::by_month("2013-12");
         let err = validate_query_range_for_game(LotteryGame::Lotto1224, &query)
             .expect_err("1224 should not allow third-term month");
-        assert!(matches!(err, DownloadError::Io(_)));
+        assert!(matches!(err, DownloadError::InvalidQuery(_)));
     }
 
     #[test]
@@ -507,7 +506,7 @@ mod tests {
         let query = HistoryDrawQuery::by_month("2014-01");
         let err = validate_query_range_for_game(LotteryGame::TicTacToe, &query)
             .expect_err("tic-tac-toe should not allow fourth-term month");
-        assert!(matches!(err, DownloadError::Io(_)));
+        assert!(matches!(err, DownloadError::InvalidQuery(_)));
     }
 
     #[test]
@@ -515,7 +514,7 @@ mod tests {
         let query = HistoryDrawQuery::by_period("113000001");
         let err = validate_query_range_for_game(LotteryGame::Lotto740, &query)
             .expect_err("740 should not allow fifth-term period");
-        assert!(matches!(err, DownloadError::Io(_)));
+        assert!(matches!(err, DownloadError::InvalidQuery(_)));
     }
 
     #[test]
@@ -536,7 +535,7 @@ mod tests {
         let query = HistoryDrawQuery::by_month(format!("{future_year:04}-{future_month:02}"));
         let err = validate_query_range_for_game(LotteryGame::Lotto649, &query)
             .expect_err("lotto649 should not allow future month");
-        assert!(matches!(err, DownloadError::Io(_)));
+        assert!(matches!(err, DownloadError::InvalidQuery(_)));
     }
 
     #[test]
@@ -544,7 +543,7 @@ mod tests {
         let query = HistoryDrawQuery::by_month("2026-07");
         let err = validate_query_range_for_game(LotteryGame::BingoBingo, &query)
             .expect_err("bingo should require open_date or period");
-        assert!(matches!(err, DownloadError::Io(_)));
+        assert!(matches!(err, DownloadError::InvalidQuery(_)));
     }
 
     #[test]
@@ -559,7 +558,7 @@ mod tests {
         let query = HistoryDrawQuery::by_open_date("2026-07-08");
         let err = validate_query_range_for_game(LotteryGame::Lotto649, &query)
             .expect_err("non-bingo should reject open_date");
-        assert!(matches!(err, DownloadError::Io(_)));
+        assert!(matches!(err, DownloadError::InvalidQuery(_)));
     }
 
     #[test]

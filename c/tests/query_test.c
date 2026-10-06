@@ -82,6 +82,20 @@ static void test_invalid_game_code_returns_error_for_remote_query(void) {
     assert(page == NULL);
 }
 
+static void test_invalid_month_returns_invalid_query_status(void) {
+    taiwan_lottery_history_draw_page *page = NULL;
+    int status = query_history_draw_from_taiwan_lottery(
+        TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
+        NULL,
+        "2026-13",
+        "2026-13",
+        &page
+    );
+
+    assert(status == TAIWAN_LOTTERY_INVALID_QUERY);
+    assert(page == NULL);
+}
+
 static void test_query_month_range_by_game(void) {
     taiwan_lottery_query_month_range *range = NULL;
     int status = lottery_game_query_month_range(
@@ -286,6 +300,7 @@ int main(void) {
     test_3d_local_query();
     test_invalid_game_code_returns_error();
     test_invalid_game_code_returns_error_for_remote_query();
+    test_invalid_month_returns_invalid_query_status();
     test_query_month_range_by_game();
     test_query_month_range_invalid_game_returns_error();
     test_query_date_range_by_game();

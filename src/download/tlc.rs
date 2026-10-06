@@ -83,7 +83,7 @@ fn download_history_draw_with_client(
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .ok_or_else(|| {
-                std::io::Error::other("Taiwan Lottery API returned empty download path")
+                DownloadError::data("Taiwan Lottery API returned empty download path")
             })?;
 
         let file_bytes = client
@@ -114,10 +114,9 @@ fn download_history_draw_with_client(
     }
 
     if saved_files.is_empty() {
-        return Err(std::io::Error::other(
+        return Err(DownloadError::data(
             "no downloadable history draw zip in Taiwan Lottery API",
-        )
-        .into());
+        ));
     }
 
     Ok(saved_files)

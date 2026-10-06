@@ -20,20 +20,24 @@ impl YearMonth {
         let mut parts = trimmed.split('-');
         let year = parts
             .next()
-            .ok_or_else(|| std::io::Error::other("month must be in YYYY-MM format"))?
+            .ok_or_else(|| DownloadError::invalid_query("month must be in YYYY-MM format"))?
             .parse::<i32>()
-            .map_err(|_| std::io::Error::other("month year must be a valid number"))?;
+            .map_err(|_| DownloadError::invalid_query("month year must be a valid number"))?;
         let month = parts
             .next()
-            .ok_or_else(|| std::io::Error::other("month must be in YYYY-MM format"))?
+            .ok_or_else(|| DownloadError::invalid_query("month must be in YYYY-MM format"))?
             .parse::<u8>()
-            .map_err(|_| std::io::Error::other("month must be a valid number"))?;
+            .map_err(|_| DownloadError::invalid_query("month must be a valid number"))?;
 
         if parts.next().is_some() {
-            return Err(std::io::Error::other("month must be in YYYY-MM format").into());
+            return Err(DownloadError::invalid_query(
+                "month must be in YYYY-MM format",
+            ));
         }
         if !(1..=12).contains(&month) {
-            return Err(std::io::Error::other("month must be between 01 and 12").into());
+            return Err(DownloadError::invalid_query(
+                "month must be between 01 and 12",
+            ));
         }
 
         Ok(Self::new(year, month))
@@ -62,32 +66,35 @@ impl YearMonthDay {
         let mut parts = trimmed.split('-');
         let year = parts
             .next()
-            .ok_or_else(|| std::io::Error::other("date must be in YYYY-MM-DD format"))?
+            .ok_or_else(|| DownloadError::invalid_query("date must be in YYYY-MM-DD format"))?
             .parse::<i32>()
-            .map_err(|_| std::io::Error::other("date year must be a valid number"))?;
+            .map_err(|_| DownloadError::invalid_query("date year must be a valid number"))?;
         let month = parts
             .next()
-            .ok_or_else(|| std::io::Error::other("date must be in YYYY-MM-DD format"))?
+            .ok_or_else(|| DownloadError::invalid_query("date must be in YYYY-MM-DD format"))?
             .parse::<u8>()
-            .map_err(|_| std::io::Error::other("date month must be a valid number"))?;
+            .map_err(|_| DownloadError::invalid_query("date month must be a valid number"))?;
         let day = parts
             .next()
-            .ok_or_else(|| std::io::Error::other("date must be in YYYY-MM-DD format"))?
+            .ok_or_else(|| DownloadError::invalid_query("date must be in YYYY-MM-DD format"))?
             .parse::<u8>()
-            .map_err(|_| std::io::Error::other("date day must be a valid number"))?;
+            .map_err(|_| DownloadError::invalid_query("date day must be a valid number"))?;
 
         if parts.next().is_some() {
-            return Err(std::io::Error::other("date must be in YYYY-MM-DD format").into());
+            return Err(DownloadError::invalid_query(
+                "date must be in YYYY-MM-DD format",
+            ));
         }
         if !(1..=12).contains(&month) {
-            return Err(std::io::Error::other("date month must be between 01 and 12").into());
+            return Err(DownloadError::invalid_query(
+                "date month must be between 01 and 12",
+            ));
         }
         let max_day = days_in_month(year, month);
         if day == 0 || day > max_day {
-            return Err(std::io::Error::other(format!(
+            return Err(DownloadError::invalid_query(format!(
                 "date day must be between 01 and {max_day:02}"
-            ))
-            .into());
+            )));
         }
 
         Ok(Self::new(year, month, day))
@@ -111,7 +118,9 @@ pub(crate) fn current_utc_year_month() -> YearMonth {
 pub(crate) fn parse_period_year(period: &str) -> Result<i32, DownloadError> {
     let trimmed = period.trim();
     if trimmed.len() < 3 {
-        return Err(std::io::Error::other("period must include at least 3 ROC year digits").into());
+        return Err(DownloadError::invalid_query(
+            "period must include at least 3 ROC year digits",
+        ));
     }
 
     let roc_year = trimmed
@@ -119,7 +128,7 @@ pub(crate) fn parse_period_year(period: &str) -> Result<i32, DownloadError> {
         .take(3)
         .collect::<String>()
         .parse::<i32>()
-        .map_err(|_| std::io::Error::other("period must start with 3 ROC year digits"))?;
+        .map_err(|_| DownloadError::invalid_query("period must start with 3 ROC year digits"))?;
     Ok(roc_year + 1911)
 }
 
@@ -192,15 +201,14 @@ fn ensure_period_year_in_range(
     allowed_end: YearMonth,
 ) -> Result<(), DownloadError> {
     if query_year < allowed_start.year || query_year > allowed_end.year {
-        return Err(std::io::Error::other(format!(
+        return Err(DownloadError::invalid_query(format!(
             "query period {period} (AD {query_year}) is outside supported range {}-{:02} to {}-{:02} for {}",
             allowed_start.year,
             allowed_start.month,
             allowed_end.year,
             allowed_end.month,
             game.metadata().display_name
-        ))
-        .into());
+        )));
     }
 
     Ok(())
@@ -216,13 +224,13 @@ fn ensure_month_range_in_range(
     allowed_end: YearMonth,
 ) -> Result<(), DownloadError> {
     if query_end < query_start {
-        return Err(
-            std::io::Error::other("end_month must be greater than or equal to month").into(),
-        );
+        return Err(DownloadError::invalid_query(
+            "end_month must be greater than or equal to month",
+        ));
     }
 
     if query_start < allowed_start || query_end > allowed_end {
-        return Err(std::io::Error::other(format!(
+        return Err(DownloadError::invalid_query(format!(
             "query month range {} to {} is outside supported range {}-{:02} to {}-{:02} for {}",
             month,
             end_month,
@@ -231,8 +239,7 @@ fn ensure_month_range_in_range(
             allowed_end.year,
             allowed_end.month,
             game.metadata().display_name
-        ))
-        .into());
+        )));
     }
 
     Ok(())
@@ -254,23 +261,21 @@ pub(crate) fn validate_query_range_for_game(
 
         let open_date = query.open_date.as_deref().unwrap_or("").trim();
         if open_date.is_empty() {
-            return Err(std::io::Error::other(
-                "open_date or period is required for BINGO BINGO remote query",
-            )
-            .into());
+            return Err(DownloadError::invalid_query(
+                "open_date or period is required for BINGO BINGO queries",
+            ));
         }
 
         let query_month = parse_open_date_to_year_month(open_date)?;
         if query_month < allowed_start || query_month > allowed_end {
-            return Err(std::io::Error::other(format!(
+            return Err(DownloadError::invalid_query(format!(
                 "query open_date {open_date} is outside supported range {}-{:02} to {}-{:02} for {}",
                 allowed_start.year,
                 allowed_start.month,
                 allowed_end.year,
                 allowed_end.month,
                 game.metadata().display_name
-            ))
-            .into());
+            )));
         }
 
         return Ok(());
@@ -282,10 +287,9 @@ pub(crate) fn validate_query_range_for_game(
         .map(str::trim)
         .is_some_and(|value| !value.is_empty())
     {
-        return Err(std::io::Error::other(
-            "open_date is not supported for this game in remote query",
-        )
-        .into());
+        return Err(DownloadError::invalid_query(
+            "open_date is not supported for this game",
+        ));
     }
 
     let (_, month, end_month) = query.normalized_params()?;
@@ -332,7 +336,7 @@ mod tests {
     fn parse_open_date_to_year_month_rejects_invalid_date() {
         let err = parse_open_date_to_year_month("2026-02-30")
             .expect_err("invalid day should be rejected");
-        assert!(matches!(err, DownloadError::Io(_)));
+        assert!(matches!(err, DownloadError::InvalidQuery(_)));
     }
 
     #[test]

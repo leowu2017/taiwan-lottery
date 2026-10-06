@@ -1,16 +1,32 @@
 use std::fmt;
 
-/// Error types that can occur during download, parsing, or API operations.
+/// Crate-wide error type for download, query, and parsing operations.
 ///
-/// This enum wraps errors from various operations including file I/O, HTTP requests,
-/// JSON parsing, CSV parsing, and ZIP extraction.
+/// Besides wrapping I/O, HTTP, JSON, CSV, and ZIP errors, it distinguishes caller mistakes
+/// ([`DownloadError::InvalidQuery`]) from unexpected upstream or local data
+/// ([`DownloadError::Data`]).
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum DownloadError {
     Io(std::io::Error),
     Http(reqwest::Error),
     Json(serde_json::Error),
     Csv(csv::Error),
     Zip(zip::result::ZipError),
+    /// A query argument is malformed, unsupported, or outside the supported range.
+    InvalidQuery(String),
+    /// Downloaded or fetched data has an unexpected shape or content.
+    Data(String),
+}
+
+impl DownloadError {
+    pub(crate) fn invalid_query(message: impl Into<String>) -> Self {
+        Self::InvalidQuery(message.into())
+    }
+
+    pub(crate) fn data(message: impl Into<String>) -> Self {
+        Self::Data(message.into())
+    }
 }
 
 impl fmt::Display for DownloadError {
@@ -21,6 +37,8 @@ impl fmt::Display for DownloadError {
             Self::Json(err) => write!(f, "JSON parse error: {err}"),
             Self::Csv(err) => write!(f, "CSV parse error: {err}"),
             Self::Zip(err) => write!(f, "ZIP error: {err}"),
+            Self::InvalidQuery(message) => write!(f, "invalid query: {message}"),
+            Self::Data(message) => write!(f, "unexpected data: {message}"),
         }
     }
 }
@@ -33,6 +51,7 @@ impl std::error::Error for DownloadError {
             Self::Json(err) => Some(err),
             Self::Csv(err) => Some(err),
             Self::Zip(err) => Some(err),
+            Self::InvalidQuery(_) | Self::Data(_) => None,
         }
     }
 }

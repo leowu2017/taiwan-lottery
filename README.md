@@ -201,6 +201,7 @@ Compatibility note:
 
 - `DownloadError`
   Implements `Display` and `std::error::Error`, so it can be printed directly and chained through standard Rust error handling.
+  It is the crate-wide error type (non-exhaustive). `InvalidQuery` reports caller mistakes such as a malformed or out-of-range month, and `Data` reports unexpected upstream or local data. In the C API they map to `TAIWAN_LOTTERY_INVALID_QUERY` and `TAIWAN_LOTTERY_PARSE_ERROR`.
 
 ## Query Rules And Supported Ranges
 

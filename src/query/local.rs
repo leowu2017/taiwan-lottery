@@ -49,10 +49,10 @@ fn resolve_history_data_root(output_dir: &Path) -> Result<PathBuf, DownloadError
     if d423f_dir.exists() {
         Ok(d423f_dir)
     } else {
-        Err(std::io::Error::other(format!(
-            "history data directory not found: {}",
-            d423f_dir.display()
-        ))
+        Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("history data directory not found: {}", d423f_dir.display()),
+        )
         .into())
     }
 }
@@ -153,7 +153,7 @@ fn parse_history_csv_file(file_path: &Path) -> Result<Vec<LocalHistoryDrawRecord
         .iter()
         .position(|header| header.trim() == "期別")
         .ok_or_else(|| {
-            std::io::Error::other(format!(
+            DownloadError::data(format!(
                 "history csv missing period column: {}",
                 file_path.display()
             ))
