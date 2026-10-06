@@ -25,19 +25,19 @@ static void assert_range(const int32_t *numbers, size_t len, int min_value, int 
 
 int main(void) {
     const draw_expectation cases[] = {
-        {TAIWAN_LOTTERY_HISTORY_GAME_SUPER_LOTTO_638, 6, 1, 1, 49, 1, 8},
-        {TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649, 6, 1, 1, 49, 1, 49},
-        {TAIWAN_LOTTERY_HISTORY_GAME_DAILY_539, 5, 1, 1, 39, 1, 39},
-        {TAIWAN_LOTTERY_HISTORY_GAME_3D, 3, 0, 0, 9, 0, 0},
-        {TAIWAN_LOTTERY_HISTORY_GAME_4D, 4, 0, 0, 9, 0, 0},
-        {TAIWAN_LOTTERY_HISTORY_GAME_49M6, 6, 0, 1, 49, 0, 0},
-        {TAIWAN_LOTTERY_HISTORY_GAME_39M5, 5, 0, 1, 39, 0, 0},
-        {TAIWAN_LOTTERY_HISTORY_GAME_38M6, 6, 0, 1, 38, 0, 0},
-        {TAIWAN_LOTTERY_HISTORY_GAME_1224, 6, 0, 1, 36, 0, 0},
-        {TAIWAN_LOTTERY_HISTORY_GAME_740, 7, 1, 1, 38, 1, 8},
-        {TAIWAN_LOTTERY_HISTORY_GAME_TIC_TAC_TOE, 20, 0, 1, 80, 0, 0},
-        {TAIWAN_LOTTERY_HISTORY_GAME_638, 6, 1, 1, 49, 1, 10},
-        {TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO, 20, 1, 1, 80, 1, 80},
+        {TAIWAN_LOTTERY_GAME_SUPER_LOTTO_638, 6, 1, 1, 49, 1, 8},
+        {TAIWAN_LOTTERY_GAME_LOTTO_649, 6, 1, 1, 49, 1, 49},
+        {TAIWAN_LOTTERY_GAME_DAILY_539, 5, 1, 1, 39, 1, 39},
+        {TAIWAN_LOTTERY_GAME_3D, 3, 0, 0, 9, 0, 0},
+        {TAIWAN_LOTTERY_GAME_4D, 4, 0, 0, 9, 0, 0},
+        {TAIWAN_LOTTERY_GAME_49M6, 6, 0, 1, 49, 0, 0},
+        {TAIWAN_LOTTERY_GAME_39M5, 5, 0, 1, 39, 0, 0},
+        {TAIWAN_LOTTERY_GAME_38M6, 6, 0, 1, 38, 0, 0},
+        {TAIWAN_LOTTERY_GAME_1224, 6, 0, 1, 36, 0, 0},
+        {TAIWAN_LOTTERY_GAME_740, 7, 1, 1, 38, 1, 8},
+        {TAIWAN_LOTTERY_GAME_TIC_TAC_TOE, 20, 0, 1, 80, 0, 0},
+        {TAIWAN_LOTTERY_GAME_638, 6, 1, 1, 49, 1, 10},
+        {TAIWAN_LOTTERY_GAME_BINGO_BINGO, 20, 1, 1, 80, 1, 80},
     };
     size_t index;
 

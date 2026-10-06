@@ -31,6 +31,9 @@ It exposes:
 - `free_lottery_game_query_month_range(...)`: release memory allocated by `lottery_game_query_month_range(...)`.
 - `free_lottery_game_metadata(...)`: release memory allocated by `lottery_game_metadata(...)`.
 
+Game constants for every API that takes a game: `TAIWAN_LOTTERY_GAME_*` (for example `TAIWAN_LOTTERY_GAME_LOTTO_649`).
+The older `TAIWAN_LOTTERY_HISTORY_GAME_*` names are deprecated aliases and will be removed in the next major version.
+
 Language constants for `lottery_game_metadata_with_language(...)`:
 
 - `TAIWAN_LOTTERY_DISPLAY_LANGUAGE_ENGLISH`

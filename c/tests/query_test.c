@@ -13,7 +13,7 @@ static void test_lotto649_local_query(void) {
     taiwan_lottery_history_draw_page *page = NULL;
     int status = query_history_draw(
         TEST_FIXTURE_DIR,
-        TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
+        TAIWAN_LOTTERY_GAME_LOTTO_649,
         NULL,
         "2026-01",
         "2026-01",
@@ -36,7 +36,7 @@ static void test_3d_local_query(void) {
     taiwan_lottery_history_draw_page *page = NULL;
     int status = query_history_draw(
         TEST_FIXTURE_DIR,
-        TAIWAN_LOTTERY_HISTORY_GAME_3D,
+        TAIWAN_LOTTERY_GAME_3D,
         NULL,
         "2026-01",
         "2026-01",
@@ -88,7 +88,7 @@ static void test_invalid_month_returns_invalid_query_status(void) {
     taiwan_lottery_history_draw_page stale;
     taiwan_lottery_history_draw_page *page = &stale;
     int status = query_history_draw_from_taiwan_lottery(
-        TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
+        TAIWAN_LOTTERY_GAME_LOTTO_649,
         NULL,
         "2026-13",
         "2026-13",
@@ -102,7 +102,7 @@ static void test_invalid_month_returns_invalid_query_status(void) {
 static void test_query_month_range_by_game(void) {
     taiwan_lottery_query_month_range *range = NULL;
     int status = lottery_game_query_month_range(
-        TAIWAN_LOTTERY_HISTORY_GAME_1224,
+        TAIWAN_LOTTERY_GAME_1224,
         &range
     );
 
@@ -128,7 +128,7 @@ static void test_query_month_range_invalid_game_returns_error(void) {
 static void test_query_date_range_by_game(void) {
     taiwan_lottery_query_date_range *range = NULL;
     int status = lottery_game_query_date_range(
-        TAIWAN_LOTTERY_HISTORY_GAME_1224,
+        TAIWAN_LOTTERY_GAME_1224,
         &range
     );
 
@@ -151,11 +151,11 @@ static void test_query_date_range_for_local_and_remote_bingo_differ(void) {
     taiwan_lottery_query_date_range *remote_range = NULL;
 
     int local_status = lottery_game_query_date_range_for_local(
-        TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO,
+        TAIWAN_LOTTERY_GAME_BINGO_BINGO,
         &local_range
     );
     int remote_status = lottery_game_query_date_range_for_remote(
-        TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO,
+        TAIWAN_LOTTERY_GAME_BINGO_BINGO,
         &remote_range
     );
 
@@ -175,7 +175,7 @@ static void test_query_with_open_date_keeps_non_bingo_month_queries_working(void
     taiwan_lottery_history_draw_page *page = NULL;
     int status = query_history_draw_with_open_date(
         TEST_FIXTURE_DIR,
-        TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
+        TAIWAN_LOTTERY_GAME_LOTTO_649,
         NULL,
         "2026-01",
         "2026-01",
@@ -193,7 +193,7 @@ static void test_query_with_open_date_keeps_non_bingo_month_queries_working(void
 
 static void test_game_metadata_exposes_number_rules(void) {
     taiwan_lottery_game_metadata *metadata = NULL;
-    int status = lottery_game_metadata(TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649, &metadata);
+    int status = lottery_game_metadata(TAIWAN_LOTTERY_GAME_LOTTO_649, &metadata);
 
     assert(status == TAIWAN_LOTTERY_OK);
     assert(metadata != NULL);
@@ -220,7 +220,7 @@ static void test_game_metadata_exposes_number_rules(void) {
 
 static void test_game_metadata_for_bingo_bingo_exposes_super_rule(void) {
     taiwan_lottery_game_metadata *metadata = NULL;
-    int status = lottery_game_metadata(TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO, &metadata);
+    int status = lottery_game_metadata(TAIWAN_LOTTERY_GAME_BINGO_BINGO, &metadata);
 
     assert(status == TAIWAN_LOTTERY_OK);
     assert(metadata != NULL);
@@ -236,7 +236,7 @@ static void test_game_metadata_for_bingo_bingo_exposes_super_rule(void) {
 static void test_game_metadata_with_language_returns_chinese_display_name(void) {
     taiwan_lottery_game_metadata *metadata = NULL;
     int status = lottery_game_metadata_with_language(
-        TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
+        TAIWAN_LOTTERY_GAME_LOTTO_649,
         TAIWAN_LOTTERY_DISPLAY_LANGUAGE_CHINESE,
         &metadata
     );
@@ -254,7 +254,7 @@ static void test_game_metadata_with_language_returns_chinese_display_name(void) 
 static void test_game_metadata_with_language_rejects_invalid_language(void) {
     taiwan_lottery_game_metadata *metadata = NULL;
     int status = lottery_game_metadata_with_language(
-        TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
+        TAIWAN_LOTTERY_GAME_LOTTO_649,
         999,
         &metadata
     );
@@ -275,7 +275,7 @@ static void test_game_metadata_invalid_game_returns_error(void) {
 static void test_remote_query_param_support_non_bingo(void) {
     taiwan_lottery_remote_query_param_support support = {0};
     int status = lottery_game_remote_query_param_support(
-        TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
+        TAIWAN_LOTTERY_GAME_LOTTO_649,
         &support
     );
 
@@ -289,7 +289,7 @@ static void test_remote_query_param_support_non_bingo(void) {
 static void test_remote_query_param_support_bingo(void) {
     taiwan_lottery_remote_query_param_support support = {0};
     int status = lottery_game_remote_query_param_support(
-        TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO,
+        TAIWAN_LOTTERY_GAME_BINGO_BINGO,
         &support
     );
 
@@ -300,7 +300,24 @@ static void test_remote_query_param_support_bingo(void) {
     assert(support.period != 0);
 }
 
+static void test_legacy_game_constants_match_new_names(void) {
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_SUPER_LOTTO_638 == TAIWAN_LOTTERY_GAME_SUPER_LOTTO_638);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649 == TAIWAN_LOTTERY_GAME_LOTTO_649);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_DAILY_539 == TAIWAN_LOTTERY_GAME_DAILY_539);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_3D == TAIWAN_LOTTERY_GAME_3D);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_4D == TAIWAN_LOTTERY_GAME_4D);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_49M6 == TAIWAN_LOTTERY_GAME_49M6);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_39M5 == TAIWAN_LOTTERY_GAME_39M5);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_38M6 == TAIWAN_LOTTERY_GAME_38M6);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_1224 == TAIWAN_LOTTERY_GAME_1224);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_740 == TAIWAN_LOTTERY_GAME_740);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_TIC_TAC_TOE == TAIWAN_LOTTERY_GAME_TIC_TAC_TOE);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_638 == TAIWAN_LOTTERY_GAME_638);
+    assert(TAIWAN_LOTTERY_HISTORY_GAME_BINGO_BINGO == TAIWAN_LOTTERY_GAME_BINGO_BINGO);
+}
+
 int main(void) {
+    test_legacy_game_constants_match_new_names();
     test_lotto649_local_query();
     test_3d_local_query();
     test_invalid_game_code_returns_error();
