@@ -7,6 +7,8 @@ use crate::{
 };
 
 const TAIWAN_LOTTERY_API_BASE_URL: &str = "https://api.taiwanlottery.com/TLCAPIWeB";
+/// Page cap (at 200 items per page) so a misbehaving server cannot make a query run forever.
+const MAX_PAGES: usize = 500;
 
 pub(crate) const fn remote_query_param_support(game: LotteryGame) -> RemoteQueryParamSupport {
     match game {
@@ -185,10 +187,28 @@ fn fetch_all_pages_from_url(
     month: &str,
     end_month: &str,
 ) -> Result<Vec<HistoryDrawItem>, DownloadError> {
+    fetch_all_pages_with_limit(client, url, period, month, end_month, MAX_PAGES)
+}
+
+fn page_limit_error(api: &str) -> DownloadError {
+    DownloadError::data(format!(
+        "Taiwan Lottery {api} API kept returning full pages; giving up to avoid an endless loop"
+    ))
+}
+
+fn fetch_all_pages_with_limit(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    period: &str,
+    month: &str,
+    end_month: &str,
+    max_pages: usize,
+) -> Result<Vec<HistoryDrawItem>, DownloadError> {
     let page_size = 200usize;
     let mut page_num = 1usize;
     let mut total_size = 0usize;
     let mut all_items = Vec::new();
+    let mut seen = HashSet::new();
 
     loop {
         let response_body = client
@@ -231,13 +251,25 @@ fn fetch_all_pages_from_url(
         }
 
         let fetched = page.items.len();
-        all_items.extend(page.items);
+        let fresh: Vec<HistoryDrawItem> = page
+            .items
+            .into_iter()
+            .filter(|item| seen.insert(item.period.clone()))
+            .collect();
+        // A page without new periods means the server ignores pageNum; stop instead of looping.
+        if fresh.is_empty() {
+            break;
+        }
+        all_items.extend(fresh);
 
         if fetched < page_size {
             break;
         }
         if total_size > 0 && all_items.len() >= total_size {
             break;
+        }
+        if page_num >= max_pages {
+            return Err(page_limit_error("history"));
         }
 
         page_num += 1;
@@ -274,13 +306,30 @@ fn fetch_bingo_result_by_filter(
     key: &str,
     value: &str,
 ) -> Result<Vec<HistoryDrawItem>, DownloadError> {
+    fetch_bingo_results_with_limit(
+        client,
+        &format!("{TAIWAN_LOTTERY_API_BASE_URL}/Lottery/BingoResult"),
+        key,
+        value,
+        MAX_PAGES,
+    )
+}
+
+fn fetch_bingo_results_with_limit(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    key: &str,
+    value: &str,
+    max_pages: usize,
+) -> Result<Vec<HistoryDrawItem>, DownloadError> {
     let page_size = 200usize;
     let mut page_num = 1usize;
     let mut all_items = Vec::new();
+    let mut seen = HashSet::new();
 
     loop {
         let response_body = client
-            .get(format!("{TAIWAN_LOTTERY_API_BASE_URL}/Lottery/BingoResult"))
+            .get(url)
             .query(&[
                 (key, value),
                 ("pageNum", &page_num.to_string()),
@@ -312,12 +361,13 @@ fn fetch_bingo_result_by_filter(
         }
 
         let fetched = content.bingo_query_result.len();
+        let mut added = false;
         for record in content.bingo_query_result {
             let period = record
                 .draw_term
                 .map(|value| value.to_string())
                 .unwrap_or_default();
-            if period.is_empty() {
+            if period.is_empty() || !seen.insert(period.clone()) {
                 continue;
             }
 
@@ -340,10 +390,19 @@ fn fetch_bingo_result_by_filter(
                 redeemable_date: None,
                 numbers: SortedDrawNumbers::new(base_numbers, sorted_numbers),
             });
+            added = true;
+        }
+
+        // A page without new periods means the server ignores pageNum; stop instead of looping.
+        if !added {
+            break;
         }
 
         if fetched < page_size {
             break;
+        }
+        if page_num >= max_pages {
+            return Err(page_limit_error("bingo"));
         }
         page_num += 1;
     }
@@ -596,5 +655,105 @@ mod tests {
         assert!(!bingo.end_month);
         assert!(bingo.open_date);
         assert!(bingo.period);
+    }
+
+    fn history_page_body(first_period: usize, count: usize) -> String {
+        let records: Vec<String> = (first_period..first_period + count)
+            .map(|period| {
+                format!(
+                    r#"{{"period":{period},"drawNumberSize":[1,2,3],"drawNumberAppear":[3,2,1]}}"#
+                )
+            })
+            .collect();
+        format!(
+            r#"{{"rtCode":0,"content":{{"totalSize":100000,"lotto649Res":[{}]}}}}"#,
+            records.join(",")
+        )
+    }
+
+    fn bingo_page_body(first_term: usize, count: usize) -> String {
+        let records: Vec<String> = (first_term..first_term + count)
+            .map(|term| {
+                format!(
+                    r#"{{"drawTerm":{term},"dDate":"2026-01-01","bigShowOrder":["01","02"],"openShowOrder":["02","01"]}}"#
+                )
+            })
+            .collect();
+        format!(
+            r#"{{"rtCode":0,"content":{{"totalSize":0,"bingoQueryResult":[{}]}}}}"#,
+            records.join(",")
+        )
+    }
+
+    fn page_number(target: &str) -> usize {
+        target
+            .split("pageNum=")
+            .nth(1)
+            .and_then(|value| value.split('&').next())
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(1)
+    }
+
+    #[test]
+    fn history_paging_stops_when_server_ignores_page_number() {
+        use crate::test_support::{MockResponse, MockServer};
+
+        let server = MockServer::start(|_| MockResponse::ok(history_page_body(1, 200)));
+        let client = build_http_client().expect("client");
+
+        let items = fetch_all_pages_from_url(&client, &server.base_url, "", "2026-01", "2026-01")
+            .expect("must terminate");
+        assert_eq!(items.len(), 200);
+        assert_eq!(server.hits(), 2);
+    }
+
+    #[test]
+    fn history_paging_fails_when_page_cap_is_exceeded() {
+        use crate::test_support::{MockResponse, MockServer};
+
+        let server = MockServer::start(|target| {
+            MockResponse::ok(history_page_body(page_number(target) * 1000, 200))
+        });
+        let client = build_http_client().expect("client");
+
+        let err =
+            fetch_all_pages_with_limit(&client, &server.base_url, "", "2026-01", "2026-01", 3)
+                .expect_err("must hit the cap");
+        assert!(matches!(err, DownloadError::Data(_)));
+        assert_eq!(server.hits(), 3);
+    }
+
+    #[test]
+    fn bingo_paging_stops_when_server_ignores_page_number() {
+        use crate::test_support::{MockResponse, MockServer};
+
+        let server = MockServer::start(|_| MockResponse::ok(bingo_page_body(1, 200)));
+        let client = build_http_client().expect("client");
+
+        let items = fetch_bingo_results_with_limit(
+            &client,
+            &server.base_url,
+            "openDate",
+            "2026-01-01",
+            MAX_PAGES,
+        )
+        .expect("must terminate");
+        assert_eq!(items.len(), 200);
+        assert_eq!(server.hits(), 2);
+    }
+
+    #[test]
+    fn bingo_paging_fails_when_page_cap_is_exceeded() {
+        use crate::test_support::{MockResponse, MockServer};
+
+        let server = MockServer::start(|target| {
+            MockResponse::ok(bingo_page_body(page_number(target) * 1000, 200))
+        });
+        let client = build_http_client().expect("client");
+
+        let err =
+            fetch_bingo_results_with_limit(&client, &server.base_url, "openDate", "2026-01-01", 3)
+                .expect_err("must hit the cap");
+        assert!(matches!(err, DownloadError::Data(_)));
     }
 }
