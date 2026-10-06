@@ -45,6 +45,19 @@ fn optional_c_str_arg_to_string(
     }
 }
 
+/// Validates an out-pointer and resets it to null so callers never see a stale pointer on failure.
+pub(crate) fn init_out<T>(out: *mut *mut T) -> Result<(), i32> {
+    if out.is_null() {
+        return Err(DownloadStatus::NullResultPointer as i32);
+    }
+
+    // SAFETY: out is non-null and points to writable caller memory by the C API contract.
+    unsafe {
+        *out = std::ptr::null_mut();
+    }
+    Ok(())
+}
+
 pub(crate) fn int_to_lottery_game(value: i32) -> Result<LotteryGame, i32> {
     LotteryGame::from_code(value).ok_or(DownloadStatus::InvalidGame as i32)
 }

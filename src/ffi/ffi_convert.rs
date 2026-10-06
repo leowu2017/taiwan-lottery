@@ -127,9 +127,8 @@ fn sorted_draw_numbers_to_c(numbers: crate::SortedDrawNumbers) -> SortedDrawNumb
 
 fn string_to_c_ptr(value: String) -> *mut c_char {
     let sanitized = value.replace('\0', "");
-    CString::new(sanitized)
-        .expect("string sanitized to avoid interior nul")
-        .into_raw()
+    // Interior NULs were removed above, so this conversion cannot fail.
+    CString::new(sanitized).unwrap_or_default().into_raw()
 }
 
 fn optional_string_to_c_ptr(value: Option<String>) -> *mut c_char {

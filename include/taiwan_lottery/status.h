@@ -15,5 +15,7 @@
 #define TAIWAN_LOTTERY_NULL_RESULT_POINTER 10
 #define TAIWAN_LOTTERY_INVALID_LANGUAGE 11
 #define TAIWAN_LOTTERY_INVALID_QUERY 12
+/* An internal error (such as a caught panic) occurred; output pointers are left NULL. */
+#define TAIWAN_LOTTERY_INTERNAL_ERROR 13
 
 #endif

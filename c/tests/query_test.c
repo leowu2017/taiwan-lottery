@@ -54,7 +54,8 @@ static void test_3d_local_query(void) {
 }
 
 static void test_invalid_game_code_returns_error(void) {
-    taiwan_lottery_history_draw_page *page = NULL;
+    taiwan_lottery_history_draw_page stale;
+    taiwan_lottery_history_draw_page *page = &stale;
     int status = query_history_draw(
         TEST_REPO_ROOT "/data",
         999,
@@ -83,7 +84,8 @@ static void test_invalid_game_code_returns_error_for_remote_query(void) {
 }
 
 static void test_invalid_month_returns_invalid_query_status(void) {
-    taiwan_lottery_history_draw_page *page = NULL;
+    taiwan_lottery_history_draw_page stale;
+    taiwan_lottery_history_draw_page *page = &stale;
     int status = query_history_draw_from_taiwan_lottery(
         TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
         NULL,
@@ -114,7 +116,8 @@ static void test_query_month_range_by_game(void) {
 }
 
 static void test_query_month_range_invalid_game_returns_error(void) {
-    taiwan_lottery_query_month_range *range = NULL;
+    taiwan_lottery_query_month_range stale;
+    taiwan_lottery_query_month_range *range = &stale;
     int status = lottery_game_query_month_range(999, &range);
 
     assert(status == TAIWAN_LOTTERY_INVALID_GAME);
@@ -260,7 +263,8 @@ static void test_game_metadata_with_language_rejects_invalid_language(void) {
 }
 
 static void test_game_metadata_invalid_game_returns_error(void) {
-    taiwan_lottery_game_metadata *metadata = NULL;
+    taiwan_lottery_game_metadata stale;
+    taiwan_lottery_game_metadata *metadata = &stale;
     int status = lottery_game_metadata(999, &metadata);
 
     assert(status == TAIWAN_LOTTERY_INVALID_GAME);
