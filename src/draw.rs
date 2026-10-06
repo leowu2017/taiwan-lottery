@@ -44,7 +44,7 @@ fn draw_numbers_for_rule(
 /// A [`DrawResult`] containing the drawn numbers and optional bonus.
 ///
 /// # Example
-/// ```ignore
+/// ```
 /// use taiwan_lottery::{draw_by_game, LotteryGame};
 ///
 /// let result = draw_by_game(LotteryGame::Lotto649);

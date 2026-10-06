@@ -8,34 +8,41 @@
 //! # Overview
 //!
 //! The library uses two primary data sources:
-//! - **FinancialPlanning OpenData** (via `D423F` dataset) - Primary source for historical draws
-//! - **Taiwan Lottery API** - Fallback source for recent results
+//! - **FinancialPlanning OpenData** (via the `D423F` dataset) - downloaded once, then queried locally
+//! - **Taiwan Lottery API** - queried directly over the network, no download needed
 //!
 //! # Quick Start
 //!
 //! ## Download historical data
 //!
-//! ```ignore
-//! use taiwan_lottery::download_history_draw;
+//! ```no_run
+//! use taiwan_lottery::download::gaze::download_history_draw;
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! download_history_draw("./data")?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Query results
 //!
-//! ```ignore
+//! ```no_run
 //! use taiwan_lottery::{query_history_draw, HistoryDrawQuery, LotteryGame};
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let query = HistoryDrawQuery::by_month("2023-12");
 //! let results = query_history_draw("./data", LotteryGame::Lotto649, query)?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Generate random draw
 //!
-//! ```ignore
+//! ```
 //! use taiwan_lottery::{draw_by_game, LotteryGame};
 //!
 //! let result = draw_by_game(LotteryGame::Lotto649);
+//! assert_eq!(result.base.numbers.len(), 6);
 //! ```
 
 pub mod download;
