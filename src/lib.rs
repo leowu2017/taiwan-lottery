@@ -45,6 +45,8 @@ mod ffi;
 mod numbers;
 mod query;
 mod rule;
+#[cfg(test)]
+mod test_support;
 
 use query::common::game_query_month_bounds;
 use query::common::{
