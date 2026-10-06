@@ -150,6 +150,8 @@ Query:
 
 ## Public APIs
 
+All network calls use a 60 second timeout, send a `taiwan-lottery/<version>` User-Agent, retry transient failures (timeouts, connection errors, HTTP 429/502/503/504) up to 3 attempts with exponential backoff, and pause 200 ms between sequential requests.
+
 ### Download APIs
 
 - `download_api_doc(output_dir)`

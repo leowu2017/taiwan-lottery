@@ -42,6 +42,7 @@ pub mod download;
 mod draw;
 mod errors;
 mod ffi;
+mod http;
 mod numbers;
 mod query;
 mod rule;

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::http::{polite_pause, send_ok};
 use crate::DownloadError;
 
 use super::common::{
@@ -87,7 +88,10 @@ fn download_csv_linked_files(
     let mut used_file_names = std::collections::HashSet::new();
     let mut saved_files = Vec::with_capacity(links.len());
     for (index, link) in links.iter().enumerate() {
-        let response = client.get(link).send()?.error_for_status()?;
+        if index > 0 {
+            polite_pause();
+        }
+        let response = send_ok(|| client.get(link))?;
         let headers = response.headers().clone();
         let mut file_name = pick_download_file_name(link, &headers, index + 1);
         let file_bytes = read_body_limited(response, MAX_DOWNLOAD_BYTES)?;
@@ -128,11 +132,7 @@ fn download_api_doc_with_client(
 ) -> Result<(String, PathBuf), DownloadError> {
     fs::create_dir_all(output_dir)?;
 
-    let api_docs_body = client
-        .get(API_DOCS_URL)
-        .send()?
-        .error_for_status()?
-        .text()?;
+    let api_docs_body = send_ok(|| client.get(API_DOCS_URL))?.text()?;
 
     let api_docs_out_path = output_dir.join(API_DOCS_FILE_NAME);
     fs::write(&api_docs_out_path, api_docs_body.as_bytes())?;
@@ -153,10 +153,7 @@ fn download_dataset_with_client(
     }
 
     let url = build_csv_url(code);
-    let body = read_body_limited(
-        client.get(&url).send()?.error_for_status()?,
-        MAX_DOWNLOAD_BYTES,
-    )?;
+    let body = read_body_limited(send_ok(|| client.get(&url))?, MAX_DOWNLOAD_BYTES)?;
 
     let out_path = output_dir.join(format!("{code}.csv"));
     fs::write(&out_path, &body)?;
@@ -201,6 +198,7 @@ pub fn download_all(output_dir: impl AsRef<Path>) -> Result<Vec<PathBuf>, Downlo
     let mut saved_files = Vec::with_capacity(codes.len() + 1);
     saved_files.push(api_docs_out_path);
     for code in codes {
+        polite_pause();
         let files = download_dataset_with_client(&client, output_dir, &code)?;
         saved_files.extend(files);
     }

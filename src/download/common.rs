@@ -2,11 +2,11 @@ use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use encoding_rs::BIG5;
 use reqwest::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 
+pub(crate) use crate::http::build_http_client;
 use crate::DownloadError;
 
 /// Upper bound for a single downloaded file body.
@@ -402,13 +402,6 @@ pub(crate) fn pick_download_file_name(
     }
 
     file_name
-}
-
-pub(crate) fn build_http_client() -> Result<reqwest::blocking::Client, DownloadError> {
-    reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .map_err(DownloadError::from)
 }
 
 #[cfg(test)]

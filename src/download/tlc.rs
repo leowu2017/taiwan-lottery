@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::http::{polite_pause, send_ok, send_raw};
 use crate::DownloadError;
 
 use super::common::{
@@ -34,7 +35,7 @@ fn resolve_history_zip_for_year(
     year: i32,
     allow_missing: bool,
 ) -> Result<Option<ResultDownloadContent>, DownloadError> {
-    let response = client.get(base_url).query(&[("year", year)]).send()?;
+    let response = send_raw(|| client.get(base_url).query(&[("year", year)]))?;
 
     if allow_missing && !response.status().is_success() {
         return Ok(None);
@@ -73,6 +74,9 @@ fn download_history_draw_with_client(
 
     let mut saved_files = Vec::new();
     for year in FIRST_YEAR..=last_year {
+        if year > FIRST_YEAR {
+            polite_pause();
+        }
         let metadata =
             match resolve_history_zip_for_year(client, base_url, year, year == last_year)? {
                 Some(value) => value,
@@ -88,10 +92,8 @@ fn download_history_draw_with_client(
                 DownloadError::data("Taiwan Lottery API returned empty download path")
             })?;
 
-        let file_bytes = read_body_limited(
-            client.get(download_path).send()?.error_for_status()?,
-            MAX_DOWNLOAD_BYTES,
-        )?;
+        let file_bytes =
+            read_body_limited(send_ok(|| client.get(download_path))?, MAX_DOWNLOAD_BYTES)?;
 
         let mut file_name = metadata
             .file_name

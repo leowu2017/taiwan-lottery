@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use super::common::{period_newest_first, validate_query_range_for_game};
+use crate::http::{build_http_client, polite_pause, send_ok};
 use crate::{
     DownloadError, HistoryDrawItem, HistoryDrawPage, HistoryDrawQuery, LotteryGame,
     RemoteQueryParamSupport, SortedDrawNumbers,
@@ -63,14 +64,6 @@ struct TaiwanLotteryBingoItem {
     big_show_order: Option<Vec<String>>,
     #[serde(rename = "openShowOrder")]
     open_show_order: Option<Vec<String>>,
-}
-
-fn build_http_client() -> Result<reqwest::blocking::Client, DownloadError> {
-    // Use the same conservative timeout for all direct Taiwan Lottery API calls.
-    reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(DownloadError::from)
 }
 
 fn json_value_to_i32_vec(value: Option<&serde_json::Value>) -> Vec<i32> {
@@ -211,18 +204,18 @@ fn fetch_all_pages_with_limit(
     let mut seen = HashSet::new();
 
     loop {
-        let response_body = client
-            .get(url)
-            .query(&[
+        let page_num_text = page_num.to_string();
+        let page_size_text = page_size.to_string();
+        let response_body = send_ok(|| {
+            client.get(url).query(&[
                 ("period", period),
                 ("month", month),
                 ("endMonth", end_month),
-                ("pageNum", &page_num.to_string()),
-                ("pageSize", &page_size.to_string()),
+                ("pageNum", page_num_text.as_str()),
+                ("pageSize", page_size_text.as_str()),
             ])
-            .send()?
-            .error_for_status()?
-            .text()?;
+        })?
+        .text()?;
 
         let response: TaiwanLotteryHistoryResponse = serde_json::from_str(&response_body)?;
         if response.rt_code != 0 {
@@ -272,6 +265,7 @@ fn fetch_all_pages_with_limit(
             return Err(page_limit_error("history"));
         }
 
+        polite_pause();
         page_num += 1;
     }
 
@@ -328,16 +322,16 @@ fn fetch_bingo_results_with_limit(
     let mut seen = HashSet::new();
 
     loop {
-        let response_body = client
-            .get(url)
-            .query(&[
+        let page_num_text = page_num.to_string();
+        let page_size_text = page_size.to_string();
+        let response_body = send_ok(|| {
+            client.get(url).query(&[
                 (key, value),
-                ("pageNum", &page_num.to_string()),
-                ("pageSize", &page_size.to_string()),
+                ("pageNum", page_num_text.as_str()),
+                ("pageSize", page_size_text.as_str()),
             ])
-            .send()?
-            .error_for_status()?
-            .text()?;
+        })?
+        .text()?;
 
         let response: TaiwanLotteryBingoResponse = serde_json::from_str(&response_body)?;
         if response.rt_code != 0 {
@@ -404,6 +398,7 @@ fn fetch_bingo_results_with_limit(
         if page_num >= max_pages {
             return Err(page_limit_error("bingo"));
         }
+        polite_pause();
         page_num += 1;
     }
 

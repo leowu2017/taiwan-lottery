@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub(crate) struct MockResponse {
     pub(crate) status: u16,
@@ -28,6 +28,7 @@ impl MockResponse {
 pub(crate) struct MockServer {
     pub(crate) base_url: String,
     hits: Arc<AtomicUsize>,
+    last_request: Arc<Mutex<String>>,
 }
 
 impl MockServer {
@@ -40,6 +41,8 @@ impl MockServer {
         let base_url = format!("http://{}", listener.local_addr().expect("local addr"));
         let hits = Arc::new(AtomicUsize::new(0));
         let thread_hits = Arc::clone(&hits);
+        let last_request = Arc::new(Mutex::new(String::new()));
+        let thread_last_request = Arc::clone(&last_request);
 
         std::thread::spawn(move || {
             for stream in listener.incoming() {
@@ -62,6 +65,9 @@ impl MockServer {
                     .to_string();
 
                 thread_hits.fetch_add(1, Ordering::SeqCst);
+                if let Ok(mut last) = thread_last_request.lock() {
+                    *last = text.to_string();
+                }
                 let response = handler(&target);
                 let head = format!(
                     "HTTP/1.1 {} Mock\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
@@ -73,11 +79,23 @@ impl MockServer {
             }
         });
 
-        Self { base_url, hits }
+        Self {
+            base_url,
+            hits,
+            last_request,
+        }
     }
 
     pub(crate) fn hits(&self) -> usize {
         self.hits.load(Ordering::SeqCst)
+    }
+
+    /// Raw text of the most recent request, including headers.
+    pub(crate) fn last_request(&self) -> String {
+        self.last_request
+            .lock()
+            .map(|text| text.clone())
+            .unwrap_or_default()
     }
 }
 
