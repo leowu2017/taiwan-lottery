@@ -103,11 +103,25 @@ pub enum LotteryGame {
     BingoBingo,
 }
 
+/// Role of a number segment in a draw result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumberSegmentKind {
+    /// Numbers that belong to the base draw numbers.
+    Base,
+    /// A single extra number reported separately from the base numbers.
+    Bonus,
+}
+
 /// One number selection segment for a lottery game.
+///
+/// The C API exposes the same segment through `name` only; segments named `bonus` or `super`
+/// correspond to [`NumberSegmentKind::Bonus`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LotteryGameNumberRule {
     /// Segment name such as `main`, `bonus`, `super`, or `zone_1`.
     pub name: &'static str,
+    /// Whether this segment is part of the base numbers or a separate bonus number.
+    pub kind: NumberSegmentKind,
     /// How many numbers are selected from this segment.
     pub picks: usize,
     /// Inclusive minimum value for this segment.
@@ -116,6 +130,26 @@ pub struct LotteryGameNumberRule {
     pub max: i32,
     /// Whether values in this segment may repeat.
     pub allow_repeat: bool,
+}
+
+impl LotteryGameNumberRule {
+    pub(crate) const fn new(
+        name: &'static str,
+        kind: NumberSegmentKind,
+        picks: usize,
+        min: i32,
+        max: i32,
+        allow_repeat: bool,
+    ) -> Self {
+        Self {
+            name,
+            kind,
+            picks,
+            min,
+            max,
+            allow_repeat,
+        }
+    }
 }
 
 /// Static metadata for rendering lottery game information in UI layers.

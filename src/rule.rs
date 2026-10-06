@@ -1,3 +1,4 @@
+use crate::NumberSegmentKind::{Base, Bonus};
 use crate::{LotteryGame, LotteryGameMetadata, LotteryGameNumberRule};
 
 /// Query date range for a lottery game (includes day precision).
@@ -66,177 +67,57 @@ impl GameQueryDateRangeWithSources {
 }
 
 const SUPER_LOTTO_638_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
-    LotteryGameNumberRule {
-        name: "main",
-        picks: 6,
-        min: 1,
-        max: 49,
-        allow_repeat: false,
-    },
-    LotteryGameNumberRule {
-        name: "bonus",
-        picks: 1,
-        min: 1,
-        max: 8,
-        allow_repeat: false,
-    },
+    LotteryGameNumberRule::new("main", Base, 6, 1, 49, false),
+    LotteryGameNumberRule::new("bonus", Bonus, 1, 1, 8, false),
 ];
 
 const LOTTO_649_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
-    LotteryGameNumberRule {
-        name: "main",
-        picks: 6,
-        min: 1,
-        max: 49,
-        allow_repeat: false,
-    },
-    LotteryGameNumberRule {
-        name: "bonus",
-        picks: 1,
-        min: 1,
-        max: 49,
-        allow_repeat: false,
-    },
+    LotteryGameNumberRule::new("main", Base, 6, 1, 49, false),
+    LotteryGameNumberRule::new("bonus", Bonus, 1, 1, 49, false),
 ];
 
 const DAILY_539_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
-    LotteryGameNumberRule {
-        name: "main",
-        picks: 5,
-        min: 1,
-        max: 39,
-        allow_repeat: false,
-    },
-    LotteryGameNumberRule {
-        name: "bonus",
-        picks: 1,
-        min: 1,
-        max: 39,
-        allow_repeat: false,
-    },
+    LotteryGameNumberRule::new("main", Base, 5, 1, 39, false),
+    LotteryGameNumberRule::new("bonus", Bonus, 1, 1, 39, false),
 ];
 
-const LOTTO_3D_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
-    name: "digits",
-    picks: 3,
-    min: 0,
-    max: 9,
-    allow_repeat: true,
-}];
+const LOTTO_3D_NUMBER_RULES: [LotteryGameNumberRule; 1] =
+    [LotteryGameNumberRule::new("digits", Base, 3, 0, 9, true)];
 
-const LOTTO_4D_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
-    name: "digits",
-    picks: 4,
-    min: 0,
-    max: 9,
-    allow_repeat: true,
-}];
+const LOTTO_4D_NUMBER_RULES: [LotteryGameNumberRule; 1] =
+    [LotteryGameNumberRule::new("digits", Base, 4, 0, 9, true)];
 
-const LOTTO_49M6_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
-    name: "main",
-    picks: 6,
-    min: 1,
-    max: 49,
-    allow_repeat: false,
-}];
+const LOTTO_49M6_NUMBER_RULES: [LotteryGameNumberRule; 1] =
+    [LotteryGameNumberRule::new("main", Base, 6, 1, 49, false)];
 
-const LOTTO_39M5_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
-    name: "main",
-    picks: 5,
-    min: 1,
-    max: 39,
-    allow_repeat: false,
-}];
+const LOTTO_39M5_NUMBER_RULES: [LotteryGameNumberRule; 1] =
+    [LotteryGameNumberRule::new("main", Base, 5, 1, 39, false)];
 
-const LOTTO_38M6_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
-    name: "main",
-    picks: 6,
-    min: 1,
-    max: 38,
-    allow_repeat: false,
-}];
+const LOTTO_38M6_NUMBER_RULES: [LotteryGameNumberRule; 1] =
+    [LotteryGameNumberRule::new("main", Base, 6, 1, 38, false)];
 
 const LOTTO_1224_NUMBER_RULES: [LotteryGameNumberRule; 3] = [
-    LotteryGameNumberRule {
-        name: "zone_1",
-        picks: 2,
-        min: 1,
-        max: 18,
-        allow_repeat: false,
-    },
-    LotteryGameNumberRule {
-        name: "zone_2",
-        picks: 2,
-        min: 19,
-        max: 27,
-        allow_repeat: false,
-    },
-    LotteryGameNumberRule {
-        name: "zone_3",
-        picks: 2,
-        min: 28,
-        max: 36,
-        allow_repeat: false,
-    },
+    LotteryGameNumberRule::new("zone_1", Base, 2, 1, 18, false),
+    LotteryGameNumberRule::new("zone_2", Base, 2, 19, 27, false),
+    LotteryGameNumberRule::new("zone_3", Base, 2, 28, 36, false),
 ];
 
 const LOTTO_740_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
-    LotteryGameNumberRule {
-        name: "main",
-        picks: 7,
-        min: 1,
-        max: 38,
-        allow_repeat: false,
-    },
-    LotteryGameNumberRule {
-        name: "bonus",
-        picks: 1,
-        min: 1,
-        max: 8,
-        allow_repeat: false,
-    },
+    LotteryGameNumberRule::new("main", Base, 7, 1, 38, false),
+    LotteryGameNumberRule::new("bonus", Bonus, 1, 1, 8, false),
 ];
 
-const TIC_TAC_TOE_NUMBER_RULES: [LotteryGameNumberRule; 1] = [LotteryGameNumberRule {
-    name: "main",
-    picks: 20,
-    min: 1,
-    max: 80,
-    allow_repeat: false,
-}];
+const TIC_TAC_TOE_NUMBER_RULES: [LotteryGameNumberRule; 1] =
+    [LotteryGameNumberRule::new("main", Base, 20, 1, 80, false)];
 
 const LOTTO_638_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
-    LotteryGameNumberRule {
-        name: "main",
-        picks: 6,
-        min: 1,
-        max: 49,
-        allow_repeat: false,
-    },
-    LotteryGameNumberRule {
-        name: "bonus",
-        picks: 1,
-        min: 1,
-        max: 10,
-        allow_repeat: false,
-    },
+    LotteryGameNumberRule::new("main", Base, 6, 1, 49, false),
+    LotteryGameNumberRule::new("bonus", Bonus, 1, 1, 10, false),
 ];
 
 const BINGO_BINGO_NUMBER_RULES: [LotteryGameNumberRule; 2] = [
-    LotteryGameNumberRule {
-        name: "main",
-        picks: 20,
-        min: 1,
-        max: 80,
-        allow_repeat: false,
-    },
-    LotteryGameNumberRule {
-        name: "super",
-        picks: 1,
-        min: 1,
-        max: 80,
-        allow_repeat: false,
-    },
+    LotteryGameNumberRule::new("main", Base, 20, 1, 80, false),
+    LotteryGameNumberRule::new("super", Bonus, 1, 1, 80, false),
 ];
 
 pub(crate) const fn metadata_for_game(game: LotteryGame) -> LotteryGameMetadata {
@@ -454,5 +335,18 @@ mod tests {
         assert_eq!(lotto638_range.start_month, 1);
         assert_eq!(lotto638_range.end_year, Some(2008));
         assert_eq!(lotto638_range.end_month, Some(1));
+    }
+
+    #[test]
+    fn bonus_segments_are_single_picks_named_bonus_or_super() {
+        for game in LotteryGame::ALL {
+            for rule in metadata_for_game(game).number_ranges {
+                let named_bonus = matches!(rule.name, "bonus" | "super");
+                assert_eq!(rule.kind == Bonus, named_bonus, "{game:?} {}", rule.name);
+                if rule.kind == Bonus {
+                    assert_eq!(rule.picks, 1, "{game:?} {}", rule.name);
+                }
+            }
+        }
     }
 }

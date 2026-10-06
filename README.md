@@ -189,6 +189,7 @@ Both query APIs return items ordered by period, newest first.
   Enumerates every supported game for UI lists and validation.
 - `LotteryGame::metadata()`
   Returns UI-oriented static metadata including display name, number rule text, and number ranges.
+  Each number range carries a `kind` (`NumberSegmentKind::Base` or `Bonus`); the C API exposes the same segment through `name` (`bonus` and `super` are the bonus segments).
 - `LotteryGame::parse(value)`
   Parses CLI/user aliases such as `lotto649`, `5118`, or `tic-tac-toe`.
 - `LotteryGame::from_code(code)`

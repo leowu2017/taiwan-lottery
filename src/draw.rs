@@ -1,5 +1,6 @@
 use crate::BonusDrawNumbers;
 use crate::LotteryGame;
+use crate::NumberSegmentKind;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
@@ -64,7 +65,7 @@ pub fn draw_by_game(game: LotteryGame) -> DrawResult {
             main_range = Some((rule.min, rule.max));
         }
 
-        if (rule.name == "bonus" || rule.name == "super") && rule.picks == 1 {
+        if rule.kind == NumberSegmentKind::Bonus && rule.picks == 1 {
             let value = if !rule.allow_repeat && Some((rule.min, rule.max)) == main_range {
                 let mut candidates: Vec<i32> = (rule.min..=rule.max)
                     .filter(|value| !base_numbers.contains(value))
