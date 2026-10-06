@@ -1,4 +1,6 @@
-use crate::rule::{query_date_range_for_game, query_date_range_for_game_with_sources};
+use crate::rule::{
+    query_date_range_for_game, query_date_range_for_game_with_sources, GameQueryDateRange,
+};
 use crate::{DownloadError, HistoryDrawQuery, LotteryGame};
 
 /// Represents a year-month pair for date range queries.
@@ -100,6 +102,7 @@ impl YearMonthDay {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn current_utc_year_month() -> YearMonth {
     let now = time::OffsetDateTime::now_utc();
     YearMonth::new(now.year(), u8::from(now.month()))
@@ -151,100 +154,34 @@ pub(crate) fn days_in_month(year: i32, month: u8) -> u8 {
 }
 
 pub(crate) fn game_query_month_bounds(game: LotteryGame) -> (YearMonth, YearMonth) {
-    let date_range = query_date_range_for_game(game);
-    let start = YearMonth::new(date_range.start_year, date_range.start_month);
+    let (start, end) = range_bounds(query_date_range_for_game(game));
+    (start.to_year_month(), end.to_year_month())
+}
 
-    let end = match (date_range.end_year, date_range.end_month) {
-        (Some(year), Some(month)) => {
-            // Discontinued game: use the end date as-is
-            YearMonth::new(year, month)
+fn range_bounds(range: GameQueryDateRange) -> (YearMonthDay, YearMonthDay) {
+    let start = YearMonthDay::new(range.start_year, range.start_month, range.start_day);
+    let end = match (range.end_year, range.end_month, range.end_day) {
+        (Some(year), Some(month), Some(day)) => YearMonthDay::new(year, month, day),
+        // Active game: cap to today so future dates are rejected.
+        _ => {
+            let now = time::OffsetDateTime::now_utc();
+            YearMonthDay::new(now.year(), u8::from(now.month()), now.day())
         }
-        (None, None) => {
-            // Active game: cap to current month (don't allow future queries)
-            current_utc_year_month()
-        }
-        _ => unreachable!(),
     };
 
     (start, end)
 }
 
 pub(crate) fn game_query_date_bounds(game: LotteryGame) -> (YearMonthDay, YearMonthDay) {
-    let date_range = query_date_range_for_game(game);
-    let start = YearMonthDay::new(
-        date_range.start_year,
-        date_range.start_month,
-        date_range.start_day,
-    );
-
-    let end = match (
-        date_range.end_year,
-        date_range.end_month,
-        date_range.end_day,
-    ) {
-        (Some(year), Some(month), Some(day)) => {
-            // Discontinued game: use the end date as-is
-            YearMonthDay::new(year, month, day)
-        }
-        (None, None, None) => {
-            // Active game: cap to current date (don't allow future queries)
-            let now = time::OffsetDateTime::now_utc();
-            YearMonthDay::new(now.year(), u8::from(now.month()), now.day())
-        }
-        _ => unreachable!(),
-    };
-
-    (start, end)
+    range_bounds(query_date_range_for_game(game))
 }
 
 pub(crate) fn game_query_date_bounds_for_local(game: LotteryGame) -> (YearMonthDay, YearMonthDay) {
-    let date_ranges = query_date_range_for_game_with_sources(game);
-    let local_range = date_ranges.local;
-    let start = YearMonthDay::new(
-        local_range.start_year,
-        local_range.start_month,
-        local_range.start_day,
-    );
-
-    let end = match (
-        local_range.end_year,
-        local_range.end_month,
-        local_range.end_day,
-    ) {
-        (Some(year), Some(month), Some(day)) => YearMonthDay::new(year, month, day),
-        (None, None, None) => {
-            let now = time::OffsetDateTime::now_utc();
-            YearMonthDay::new(now.year(), u8::from(now.month()), now.day())
-        }
-        _ => unreachable!(),
-    };
-
-    (start, end)
+    range_bounds(query_date_range_for_game_with_sources(game).local)
 }
 
 pub(crate) fn game_query_date_bounds_for_remote(game: LotteryGame) -> (YearMonthDay, YearMonthDay) {
-    let date_ranges = query_date_range_for_game_with_sources(game);
-    let remote_range = date_ranges.remote;
-    let start = YearMonthDay::new(
-        remote_range.start_year,
-        remote_range.start_month,
-        remote_range.start_day,
-    );
-
-    let end = match (
-        remote_range.end_year,
-        remote_range.end_month,
-        remote_range.end_day,
-    ) {
-        (Some(year), Some(month), Some(day)) => YearMonthDay::new(year, month, day),
-        (None, None, None) => {
-            let now = time::OffsetDateTime::now_utc();
-            YearMonthDay::new(now.year(), u8::from(now.month()), now.day())
-        }
-        _ => unreachable!(),
-    };
-
-    (start, end)
+    range_bounds(query_date_range_for_game_with_sources(game).remote)
 }
 
 fn ensure_period_year_in_range(
