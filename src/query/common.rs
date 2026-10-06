@@ -115,6 +115,11 @@ pub(crate) fn current_utc_year_month() -> YearMonth {
     YearMonth::new(now.year(), u8::from(now.month()))
 }
 
+/// Orders periods newest first; longer periods are newer, equal lengths compare lexicographically.
+pub(crate) fn period_newest_first(left: &str, right: &str) -> std::cmp::Ordering {
+    (right.len(), right).cmp(&(left.len(), left))
+}
+
 pub(crate) fn parse_period_year(period: &str) -> Result<i32, DownloadError> {
     let trimmed = period.trim();
     if trimmed.len() < 3 {
@@ -337,6 +342,16 @@ mod tests {
         let err = parse_open_date_to_year_month("2026-02-30")
             .expect_err("invalid day should be rejected");
         assert!(matches!(err, DownloadError::InvalidQuery(_)));
+    }
+
+    #[test]
+    fn period_newest_first_orders_descending_by_width_then_text() {
+        let mut periods = vec!["114000104", "115000001", "99000001", "114000100"];
+        periods.sort_by(|left, right| period_newest_first(left, right));
+        assert_eq!(
+            periods,
+            vec!["115000001", "114000104", "114000100", "99000001"]
+        );
     }
 
     #[test]

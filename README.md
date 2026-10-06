@@ -166,6 +166,8 @@ Query:
 
 ### Query APIs
 
+Both query APIs return items ordered by period, newest first.
+
 - `query_history_draw(output_dir, game, query)`
   Reads history draw data from files downloaded by `download_history_draw` under `output_dir/D423F/`.
   Primary numbers are exposed in `HistoryDrawItem.numbers.base.numbers`.

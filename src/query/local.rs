@@ -1,7 +1,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::common::{parse_date_year_month, validate_query_range_for_game, YearMonth};
+use super::common::{
+    parse_date_year_month, period_newest_first, validate_query_range_for_game, YearMonth,
+};
 use crate::{
     DownloadError, HistoryDrawItem, HistoryDrawPage, HistoryDrawQuery, LotteryGame,
     SortedDrawNumbers,
@@ -233,7 +235,7 @@ pub(crate) fn query_history_draw_from_downloaded_data(
         all_records.retain(|record| record.period == period);
     }
 
-    all_records.sort_by(|left, right| right.period.cmp(&left.period));
+    all_records.sort_by(|left, right| period_newest_first(&left.period, &right.period));
     all_records.dedup_by(|left, right| left.period == right.period);
 
     let total_size = all_records.len();
@@ -434,9 +436,8 @@ mod tests {
 
         let query = HistoryDrawQuery::by_month_range("2025-12", "2026-01");
         let page = query_history_draw(&root, LotteryGame::Lotto649, query).expect("range query");
-        let mut periods: Vec<&str> = page.items.iter().map(|item| item.period.as_str()).collect();
-        periods.sort_unstable();
-        assert_eq!(periods, vec!["114000104", "115000001"]);
+        let periods: Vec<&str> = page.items.iter().map(|item| item.period.as_str()).collect();
+        assert_eq!(periods, vec!["115000001", "114000104"]);
         assert_eq!(page.total_size, 2);
 
         fs::remove_dir_all(&root).expect("cleanup temp dir");

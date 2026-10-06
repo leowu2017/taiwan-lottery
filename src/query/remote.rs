@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::common::validate_query_range_for_game;
+use super::common::{period_newest_first, validate_query_range_for_game};
 use crate::{
     DownloadError, HistoryDrawItem, HistoryDrawPage, HistoryDrawQuery, LotteryGame,
     RemoteQueryParamSupport, SortedDrawNumbers,
@@ -417,7 +417,8 @@ fn query_bingo_history_with_client(
     // Bingo uses openDate/period rather than month/endMonth.
     let period = query.period.as_deref().unwrap_or("").trim();
     if !period.is_empty() {
-        let items = fetch_bingo_result_by_period(client, period)?;
+        let mut items = fetch_bingo_result_by_period(client, period)?;
+        items.sort_by(|a, b| period_newest_first(&a.period, &b.period));
         let total_size = items.len();
         return Ok(HistoryDrawPage { total_size, items });
     }
@@ -431,7 +432,7 @@ fn query_bingo_history_with_client(
 
     let mut all_items = fetch_bingo_result_by_open_date(client, open_date)?;
 
-    all_items.sort_by(|a, b| a.period.cmp(&b.period));
+    all_items.sort_by(|a, b| period_newest_first(&a.period, &b.period));
     all_items.dedup_by(|a, b| a.period == b.period);
 
     let total_size = all_items.len();
@@ -465,7 +466,7 @@ pub(crate) fn query_history_draw_with_client(
 
     let mut seen = HashSet::new();
     all_items.retain(|item| seen.insert(item.period.clone()));
-    all_items.sort_by(|a, b| a.period.cmp(&b.period));
+    all_items.sort_by(|a, b| period_newest_first(&a.period, &b.period));
 
     let total_size = all_items.len();
     Ok(HistoryDrawPage {
