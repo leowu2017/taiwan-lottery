@@ -462,12 +462,34 @@ pub(crate) fn query_history_draw_with_client(
     let mut seen = HashSet::new();
     all_items.retain(|item| seen.insert(item.period.clone()));
     all_items.sort_by(|a, b| period_newest_first(&a.period, &b.period));
+    drop_padding_numbers(&mut all_items, game);
 
     let total_size = all_items.len();
     Ok(HistoryDrawPage {
         total_size,
         items: all_items,
     })
+}
+
+/// Drops numbers below the game's minimum; the API pads absent bonus numbers with 0.
+/// Only the lower bound is enforced because historical draws used larger pools than today's rules.
+fn drop_padding_numbers(items: &mut [HistoryDrawItem], game: LotteryGame) {
+    let Some(min) = game
+        .metadata()
+        .number_ranges
+        .iter()
+        .map(|rule| rule.min)
+        .min()
+    else {
+        return;
+    };
+
+    for item in items {
+        item.numbers.base.numbers.retain(|number| *number >= min);
+        if let Some(sorted) = item.numbers.sorted.as_mut() {
+            sorted.retain(|number| *number >= min);
+        }
+    }
 }
 
 pub(crate) fn query_history_draw_from_taiwan_lottery(
@@ -651,6 +673,31 @@ mod tests {
         assert!(!bingo.end_month);
         assert!(bingo.open_date);
         assert!(bingo.period);
+    }
+
+    #[test]
+    fn zero_padding_is_dropped_but_digit_games_and_large_historical_numbers_stay() {
+        let item = |numbers: Vec<i32>| HistoryDrawItem {
+            period: "1".to_string(),
+            date: None,
+            redeemable_date: None,
+            numbers: SortedDrawNumbers::new(numbers.clone(), Some(numbers)),
+        };
+
+        let mut lotto = vec![item(vec![8, 17, 23, 24, 25, 31, 39, 0])];
+        drop_padding_numbers(&mut lotto, LotteryGame::Lotto740);
+        assert_eq!(
+            lotto[0].numbers.base.numbers,
+            vec![8, 17, 23, 24, 25, 31, 39]
+        );
+        assert_eq!(
+            lotto[0].numbers.sorted,
+            Some(vec![8, 17, 23, 24, 25, 31, 39])
+        );
+
+        let mut digits = vec![item(vec![0, 5, 9])];
+        drop_padding_numbers(&mut digits, LotteryGame::Lotto3D);
+        assert_eq!(digits[0].numbers.base.numbers, vec![0, 5, 9]);
     }
 
     fn history_page_body(first_period: usize, count: usize) -> String {
