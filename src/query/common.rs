@@ -151,6 +151,12 @@ pub(crate) fn parse_date_year_month(date: &str) -> Option<YearMonth> {
         .then(|| YearMonth::new(year, month))
 }
 
+pub(crate) fn parse_date_year_month_day(date: &str) -> Option<YearMonthDay> {
+    let normalized = date.trim().replace('/', "-");
+    let date_part = normalized.split(['T', ' ']).next()?;
+    YearMonthDay::parse_yyyy_mm_dd(date_part).ok()
+}
+
 pub(crate) fn days_in_month(year: i32, month: u8) -> u8 {
     match month {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
