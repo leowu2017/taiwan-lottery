@@ -1,17 +1,18 @@
+#undef NDEBUG
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
 
 #include <taiwan_lottery/query.h>
 
-#ifndef TEST_REPO_ROOT
-#error TEST_REPO_ROOT must be defined by the build system.
+#ifndef TEST_FIXTURE_DIR
+#error TEST_FIXTURE_DIR must be defined by the build system.
 #endif
 
 static void test_lotto649_local_query(void) {
     taiwan_lottery_history_draw_page *page = NULL;
     int status = query_history_draw(
-        TEST_REPO_ROOT "/data",
+        TEST_FIXTURE_DIR,
         TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
         NULL,
         "2026-01",
@@ -34,7 +35,7 @@ static void test_lotto649_local_query(void) {
 static void test_3d_local_query(void) {
     taiwan_lottery_history_draw_page *page = NULL;
     int status = query_history_draw(
-        TEST_REPO_ROOT "/data",
+        TEST_FIXTURE_DIR,
         TAIWAN_LOTTERY_HISTORY_GAME_3D,
         NULL,
         "2026-01",
@@ -57,7 +58,7 @@ static void test_invalid_game_code_returns_error(void) {
     taiwan_lottery_history_draw_page stale;
     taiwan_lottery_history_draw_page *page = &stale;
     int status = query_history_draw(
-        TEST_REPO_ROOT "/data",
+        TEST_FIXTURE_DIR,
         999,
         NULL,
         "2026-01",
@@ -173,7 +174,7 @@ static void test_query_date_range_for_local_and_remote_bingo_differ(void) {
 static void test_query_with_open_date_keeps_non_bingo_month_queries_working(void) {
     taiwan_lottery_history_draw_page *page = NULL;
     int status = query_history_draw_with_open_date(
-        TEST_REPO_ROOT "/data",
+        TEST_FIXTURE_DIR,
         TAIWAN_LOTTERY_HISTORY_GAME_LOTTO_649,
         NULL,
         "2026-01",

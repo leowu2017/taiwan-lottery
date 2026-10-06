@@ -50,7 +50,7 @@ target_link_libraries(draw_test PRIVATE "${TAIWAN_LOTTERY_LIB}" ${TAIWAN_LOTTERY
 
 add_executable(query_test tests/query_test.c)
 target_include_directories(query_test PRIVATE "${TAIWAN_LOTTERY_INCLUDE_DIR}")
-target_compile_definitions(query_test PRIVATE TEST_REPO_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+target_compile_definitions(query_test PRIVATE TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
 target_link_libraries(query_test PRIVATE "${TAIWAN_LOTTERY_LIB}" ${TAIWAN_LOTTERY_SYSTEM_LIBS})
 
 add_test(NAME numbers_test COMMAND numbers_test)
