@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use crate::DownloadError;
 
 use super::common::{
-    build_http_client, extract_zip_bytes, sanitize_file_name, should_extract_zip,
-    zip_extract_dir_for_file,
+    build_http_client, extract_zip_bytes, read_body_limited, sanitize_file_name,
+    should_extract_zip, zip_extract_dir_for_file, MAX_DOWNLOAD_BYTES,
 };
 
 const RESULT_DOWNLOAD_URL: &str = "https://api.taiwanlottery.com/TLCAPIWeB/Lottery/ResultDownload";
@@ -88,11 +88,10 @@ fn download_history_draw_with_client(
                 DownloadError::data("Taiwan Lottery API returned empty download path")
             })?;
 
-        let file_bytes = client
-            .get(download_path)
-            .send()?
-            .error_for_status()?
-            .bytes()?;
+        let file_bytes = read_body_limited(
+            client.get(download_path).send()?.error_for_status()?,
+            MAX_DOWNLOAD_BYTES,
+        )?;
 
         let mut file_name = metadata
             .file_name

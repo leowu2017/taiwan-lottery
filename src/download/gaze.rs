@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use crate::DownloadError;
 
 use super::common::{
-    build_http_client, extract_zip_bytes, pick_download_file_name, should_extract_zip,
-    zip_extract_dir_for_file,
+    build_http_client, extract_zip_bytes, pick_download_file_name, read_body_limited,
+    should_extract_zip, zip_extract_dir_for_file, MAX_DOWNLOAD_BYTES,
 };
 
 const CSV_BASE_URL: &str = "https://gaze.nta.gov.tw/dntmb/OpenData/csvDw?ntaCode=";
@@ -23,13 +23,21 @@ pub fn build_csv_url(code: &str) -> String {
     format!("{CSV_BASE_URL}{code}")
 }
 
+/// Dataset codes become directory and file names, so only plain identifiers are accepted.
+fn is_valid_dataset_code(code: &str) -> bool {
+    !code.is_empty()
+        && code
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
+}
+
 pub fn parse_codes_from_api_docs(api_docs_json: &str) -> Result<Vec<String>, DownloadError> {
     let api_docs: ApiDocs = serde_json::from_str(api_docs_json)?;
     let mut codes: Vec<String> = api_docs
         .paths
         .keys()
         .filter_map(|path| path.strip_prefix("/restful/"))
-        .filter(|code| !code.is_empty())
+        .filter(|code| is_valid_dataset_code(code))
         .map(ToOwned::to_owned)
         .collect();
 
@@ -82,7 +90,7 @@ fn download_csv_linked_files(
         let response = client.get(link).send()?.error_for_status()?;
         let headers = response.headers().clone();
         let mut file_name = pick_download_file_name(link, &headers, index + 1);
-        let file_bytes = response.bytes()?;
+        let file_bytes = read_body_limited(response, MAX_DOWNLOAD_BYTES)?;
 
         if file_name.rsplit_once('.').is_none() {
             if let Some(extension) = super::common::extension_from_magic_bytes(&file_bytes) {
@@ -138,8 +146,17 @@ fn download_dataset_with_client(
 ) -> Result<Vec<PathBuf>, DownloadError> {
     fs::create_dir_all(output_dir)?;
 
+    if !is_valid_dataset_code(code) {
+        return Err(DownloadError::invalid_query(format!(
+            "invalid dataset code: {code:?}"
+        )));
+    }
+
     let url = build_csv_url(code);
-    let body = client.get(&url).send()?.error_for_status()?.bytes()?;
+    let body = read_body_limited(
+        client.get(&url).send()?.error_for_status()?,
+        MAX_DOWNLOAD_BYTES,
+    )?;
 
     let out_path = output_dir.join(format!("{code}.csv"));
     fs::write(&out_path, &body)?;
@@ -209,6 +226,36 @@ mod tests {
 
         let codes = parse_codes_from_api_docs(sample).expect("must parse codes");
         assert_eq!(codes, vec!["D401".to_string(), "D423F".to_string()]);
+    }
+
+    #[test]
+    fn parse_codes_from_api_docs_skips_codes_that_are_not_plain_identifiers() {
+        let sample = r#"
+        {
+            "paths": {
+                "/restful/D401": {},
+                "/restful/../../evil": {},
+                "/restful/a/b": {},
+                "/restful/": {}
+            }
+        }
+        "#;
+
+        let codes = parse_codes_from_api_docs(sample).expect("must parse codes");
+        assert_eq!(codes, vec!["D401".to_string()]);
+    }
+
+    #[test]
+    fn download_dataset_rejects_path_like_codes_before_any_request() {
+        let client = build_http_client().expect("client");
+        let dir =
+            std::env::temp_dir().join(format!("taiwan-lottery-gaze-code-{}", std::process::id()));
+
+        let err = download_dataset_with_client(&client, &dir, "../escape")
+            .expect_err("path-like code must be rejected");
+        assert!(matches!(err, DownloadError::InvalidQuery(_)));
+
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

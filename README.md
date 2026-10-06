@@ -156,6 +156,7 @@ Query:
   Downloads `financialplanning_api_docs.json` into `output_dir`.
 - `download_dataset(output_dir, dataset_code)`
   Downloads one dataset CSV (for example `D416F.csv`), then downloads all links in that CSV and extracts ZIP files automatically.
+  Dataset codes may contain only ASCII letters, digits, `_`, and `-`. Downloads and extracted archives are size-limited, and archive entries that collide after sanitizing are kept under suffixed names.
 - `download::gaze::download_history_draw(output_dir)`
   Downloads history draw data only from FinancialPlanning OpenData (`D423F`).
 - `download::tlc::download_history_draw(output_dir)`
