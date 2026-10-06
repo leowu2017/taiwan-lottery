@@ -124,13 +124,14 @@ pub(crate) fn parse_open_date_to_year_month(open_date: &str) -> Result<YearMonth
     YearMonthDay::parse_yyyy_mm_dd(open_date).map(YearMonthDay::to_year_month)
 }
 
-pub(crate) fn parse_date_month(date: &str) -> Option<String> {
+pub(crate) fn parse_date_year_month(date: &str) -> Option<YearMonth> {
     let normalized = date.trim().replace('/', "-");
-    if normalized.len() >= 7 {
-        Some(normalized[..7].to_string())
-    } else {
-        None
-    }
+    let mut parts = normalized.split('-');
+    let year = parts.next()?.parse::<i32>().ok()?;
+    let month = parts.next()?.parse::<u8>().ok()?;
+    (1..=12)
+        .contains(&month)
+        .then(|| YearMonth::new(year, month))
 }
 
 pub(crate) fn days_in_month(year: i32, month: u8) -> u8 {
@@ -398,9 +399,17 @@ mod tests {
     }
 
     #[test]
-    fn parse_date_month_supports_dash_and_slash() {
-        assert_eq!(parse_date_month("2026-07-07"), Some("2026-07".to_string()));
-        assert_eq!(parse_date_month("2026/07/07"), Some("2026-07".to_string()));
-        assert_eq!(parse_date_month("2026"), None);
+    fn parse_date_year_month_supports_dash_and_slash() {
+        let expected = Some(YearMonth::new(2026, 7));
+        assert_eq!(parse_date_year_month("2026-07-07"), expected);
+        assert_eq!(parse_date_year_month("2026/07/07"), expected);
+        assert_eq!(parse_date_year_month("2026"), None);
+    }
+
+    #[test]
+    fn parse_date_year_month_rejects_non_ascii_and_invalid_months() {
+        assert_eq!(parse_date_year_month("二〇二六年七月七日"), None);
+        assert_eq!(parse_date_year_month("2026-13-01"), None);
+        assert_eq!(parse_date_year_month(""), None);
     }
 }

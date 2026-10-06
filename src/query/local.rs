@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::common::{parse_date_month, validate_query_range_for_game};
+use super::common::{parse_date_year_month, validate_query_range_for_game, YearMonth};
 use crate::{
     DownloadError, HistoryDrawItem, HistoryDrawPage, HistoryDrawQuery, LotteryGame,
     SortedDrawNumbers,
@@ -63,9 +63,9 @@ fn year_from_path(path: &Path) -> Option<i32> {
         .and_then(|value| value.parse::<i32>().ok())
 }
 
-fn should_descend_into_dir(path: &Path, target_year: Option<i32>) -> bool {
-    match (target_year, year_from_path(path)) {
-        (Some(expected), Some(actual)) => actual == expected,
+fn should_descend_into_dir(path: &Path, year_range: Option<(i32, i32)>) -> bool {
+    match (year_range, year_from_path(path)) {
+        (Some((start, end)), Some(actual)) => (start..=end).contains(&actual),
         _ => true,
     }
 }
@@ -73,21 +73,17 @@ fn should_descend_into_dir(path: &Path, target_year: Option<i32>) -> bool {
 fn collect_history_csv_files(
     root: &Path,
     prefixes: &[&str],
-    target_month: Option<&str>,
+    year_range: Option<(i32, i32)>,
     output: &mut Vec<PathBuf>,
 ) -> Result<(), DownloadError> {
-    let target_year = target_month
-        .and_then(|value| value.split('-').next())
-        .and_then(|value| value.parse::<i32>().ok());
-
     for entry in fs::read_dir(root)? {
         let entry = entry?;
         let path = entry.path();
         let file_type = entry.file_type()?;
 
         if file_type.is_dir() {
-            if should_descend_into_dir(&path, target_year) {
-                collect_history_csv_files(&path, prefixes, target_month, output)?;
+            if should_descend_into_dir(&path, year_range) {
+                collect_history_csv_files(&path, prefixes, year_range, output)?;
             }
             continue;
         }
@@ -109,17 +105,11 @@ fn collect_history_csv_files(
             continue;
         }
 
-        if let Some(target_month) = target_month {
-            let target_year = target_month
-                .split('-')
-                .next()
-                .and_then(|value| value.parse::<i32>().ok());
-            let file_matches_year = target_year
-                .map(|value| file_name.contains(&format!("_{value}.csv")))
-                .unwrap_or(false);
-            let path_matches_year = target_year.is_none_or(|value| {
-                path.ancestors()
-                    .any(|ancestor| year_from_path(ancestor) == Some(value))
+        if let Some((start, end)) = year_range {
+            let file_matches_year =
+                (start..=end).any(|year| file_name.contains(&format!("_{year}.csv")));
+            let path_matches_year = path.ancestors().any(|ancestor| {
+                year_from_path(ancestor).is_some_and(|year| (start..=end).contains(&year))
             });
 
             // D423F is grouped by year directories; accept either folder-based
@@ -208,14 +198,22 @@ pub(crate) fn query_history_draw_from_downloaded_data(
 ) -> Result<HistoryDrawPage, DownloadError> {
     // Local CSVs are aggregated across years, so filter after collecting and dedup by period.
     validate_query_range_for_game(game, query)?;
-    let (period, month, _) = query.normalized_params()?;
+    let (period, month, end_month) = query.normalized_params()?;
     let root = resolve_history_data_root(output_dir)?;
 
     let prefixes = history_game_file_prefixes(game);
-    let target_month = if period.is_empty() { Some(month) } else { None };
+    let month_range = if period.is_empty() {
+        Some((
+            YearMonth::parse_yyyy_mm(month)?,
+            YearMonth::parse_yyyy_mm(end_month)?,
+        ))
+    } else {
+        None
+    };
+    let year_range = month_range.map(|(start, end)| (start.year, end.year));
 
     let mut csv_files = Vec::new();
-    collect_history_csv_files(&root, prefixes, target_month, &mut csv_files)?;
+    collect_history_csv_files(&root, prefixes, year_range, &mut csv_files)?;
 
     let mut all_records = Vec::new();
     for file_path in csv_files {
@@ -223,16 +221,16 @@ pub(crate) fn query_history_draw_from_downloaded_data(
         all_records.append(&mut file_records);
     }
 
-    if !period.is_empty() {
-        all_records.retain(|record| record.period == period);
-    } else {
+    if let Some((start, end)) = month_range {
         all_records.retain(|record| {
             record
                 .date
                 .as_deref()
-                .and_then(parse_date_month)
-                .is_some_and(|value| value == month)
+                .and_then(parse_date_year_month)
+                .is_some_and(|value| value >= start && value <= end)
         });
+    } else {
+        all_records.retain(|record| record.period == period);
     }
 
     all_records.sort_by(|left, right| right.period.cmp(&left.period));
@@ -274,8 +272,18 @@ mod tests {
     fn year_path_helpers_match_numeric_year_dirs_only() {
         assert_eq!(year_from_path(Path::new("/tmp/2024")), Some(2024));
         assert_eq!(year_from_path(Path::new("/tmp/not-a-year")), None);
-        assert!(should_descend_into_dir(Path::new("/tmp/2024"), Some(2024)));
-        assert!(!should_descend_into_dir(Path::new("/tmp/2025"), Some(2024)));
+        assert!(should_descend_into_dir(
+            Path::new("/tmp/2024"),
+            Some((2024, 2024))
+        ));
+        assert!(should_descend_into_dir(
+            Path::new("/tmp/2024"),
+            Some((2023, 2025))
+        ));
+        assert!(!should_descend_into_dir(
+            Path::new("/tmp/2025"),
+            Some((2024, 2024))
+        ));
     }
 
     #[test]
@@ -393,6 +401,68 @@ mod tests {
             page.items[0].numbers.sorted,
             Some(vec![3, 7, 16, 19, 40, 42, 12])
         );
+
+        fs::remove_dir_all(&root).expect("cleanup temp dir");
+    }
+
+    #[test]
+    fn month_range_query_spans_months_and_years() {
+        let root = std::env::temp_dir().join(format!(
+            "taiwan-lottery-history-local-range-test-{}",
+            std::process::id()
+        ));
+        if root.exists() {
+            fs::remove_dir_all(&root).expect("cleanup old temp dir");
+        }
+
+        let header = "遊戲名稱,期別,開獎日期,獎號1,獎號2,獎號3,獎號4,獎號5,獎號6,特別號\n";
+        for (year, rows) in [
+            (
+                2025,
+                "大樂透,114000100,2025/11/28,1,2,3,4,5,6,7\n大樂透,114000104,2025/12/12,1,2,3,4,5,6,7\n",
+            ),
+            (
+                2026,
+                "大樂透,115000001,2026/01/02,1,2,3,4,5,6,7\n大樂透,115000010,2026/02/03,1,2,3,4,5,6,7\n",
+            ),
+        ] {
+            let dir = root.join("D423F").join(year.to_string());
+            fs::create_dir_all(&dir).expect("create year dir");
+            fs::write(dir.join(format!("大樂透_{year}.csv")), format!("{header}{rows}"))
+                .expect("write csv");
+        }
+
+        let query = HistoryDrawQuery::by_month_range("2025-12", "2026-01");
+        let page = query_history_draw(&root, LotteryGame::Lotto649, query).expect("range query");
+        let mut periods: Vec<&str> = page.items.iter().map(|item| item.period.as_str()).collect();
+        periods.sort_unstable();
+        assert_eq!(periods, vec!["114000104", "115000001"]);
+        assert_eq!(page.total_size, 2);
+
+        fs::remove_dir_all(&root).expect("cleanup temp dir");
+    }
+
+    #[test]
+    fn non_ascii_date_does_not_panic() {
+        let root = std::env::temp_dir().join(format!(
+            "taiwan-lottery-history-local-nonascii-test-{}",
+            std::process::id()
+        ));
+        if root.exists() {
+            fs::remove_dir_all(&root).expect("cleanup old temp dir");
+        }
+
+        let dir = root.join("D423F").join("2026");
+        fs::create_dir_all(&dir).expect("create year dir");
+        fs::write(
+            dir.join("大樂透_2026.csv"),
+            "遊戲名稱,期別,開獎日期,獎號1,獎號2,獎號3,獎號4,獎號5,獎號6,特別號\n大樂透,115000001,二〇二六年一月,1,2,3,4,5,6,7\n",
+        )
+        .expect("write csv");
+
+        let query = HistoryDrawQuery::by_month("2026-01");
+        let page = query_history_draw(&root, LotteryGame::Lotto649, query).expect("query");
+        assert_eq!(page.total_size, 0);
 
         fs::remove_dir_all(&root).expect("cleanup temp dir");
     }
