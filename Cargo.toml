@@ -2,6 +2,7 @@
 name = "taiwan-lottery"
 version = "0.2.0"
 edition = "2021"
+rust-version = "1.88"
 description = "Taiwan lottery download, query, and random draw capabilities with Rust and C APIs"
 authors = ["Leo Wu"]
 license = "MIT"

@@ -11,6 +11,8 @@ This repository exposes two public interfaces:
 
 The project includes tests for both interfaces and they should stay aligned.
 
+The minimum supported Rust version is 1.88 (declared as `rust-version` in `Cargo.toml`).
+
 ## Quick Start
 
 ### Rust
