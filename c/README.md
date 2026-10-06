@@ -49,6 +49,7 @@ Split headers by concern:
 - `include/taiwan_lottery/draw.h`
 - `include/taiwan_lottery/numbers.h`
 - `include/taiwan_lottery/query.h`
+- `include/taiwan_lottery/status.h`
 
 Both query functions return a `taiwan_lottery_history_draw_page*` via output pointer.
 The caller owns this memory and must call `free_history_draw_page(...)` when done.

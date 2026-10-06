@@ -109,6 +109,7 @@ Split headers by concern:
 - `include/taiwan_lottery/draw.h`
 - `include/taiwan_lottery/numbers.h`
 - `include/taiwan_lottery/query.h`
+- `include/taiwan_lottery/status.h`
 
 Game metadata and query-range helpers are also exposed to C through `query.h`:
 

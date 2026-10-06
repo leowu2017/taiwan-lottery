@@ -2,23 +2,11 @@
 #define TAIWAN_LOTTERY_QUERY_H
 
 #include <taiwan_lottery/numbers.h>
+#include <taiwan_lottery/status.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define TAIWAN_LOTTERY_OK 0
-#define TAIWAN_LOTTERY_NULL_PATH 1
-#define TAIWAN_LOTTERY_INVALID_PATH_UTF8 2
-#define TAIWAN_LOTTERY_IO_ERROR 3
-#define TAIWAN_LOTTERY_NETWORK_ERROR 4
-#define TAIWAN_LOTTERY_PARSE_ERROR 5
-#define TAIWAN_LOTTERY_NULL_DATASET_CODE 6
-#define TAIWAN_LOTTERY_INVALID_DATASET_CODE_UTF8 7
-#define TAIWAN_LOTTERY_INVALID_GAME 8
-#define TAIWAN_LOTTERY_INVALID_QUERY_UTF8 9
-#define TAIWAN_LOTTERY_NULL_RESULT_POINTER 10
-#define TAIWAN_LOTTERY_INVALID_LANGUAGE 11
 
 /* History game values for query_history_draw* C APIs */
 #define TAIWAN_LOTTERY_HISTORY_GAME_SUPER_LOTTO_638 0

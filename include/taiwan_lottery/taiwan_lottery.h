@@ -14,5 +14,6 @@
 #include <taiwan_lottery/download.h>
 #include <taiwan_lottery/numbers.h>
 #include <taiwan_lottery/query.h>
+#include <taiwan_lottery/status.h>
 
 #endif

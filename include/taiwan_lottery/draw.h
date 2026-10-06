@@ -3,6 +3,7 @@
 
 #include <taiwan_lottery/numbers.h>
 #include <taiwan_lottery/query.h>
+#include <taiwan_lottery/status.h>
 
 #ifdef __cplusplus
 extern "C" {
